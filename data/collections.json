@@ -1,0 +1,92 @@
+{
+  "collections": [
+    {
+      "id": "default",
+      "name": "Toronto Pins",
+      "center": {
+        "lat": 43.6532,
+        "lng": -79.3832
+      },
+      "pins": [
+        {
+          "id": "pin_xh4t77h4",
+          "lat": 43.653572500558084,
+          "lng": -79.39950744118585,
+          "title": "test",
+          "description": "nothing",
+          "audioFile": "pin_xh4t77h4.webm",
+          "createdAt": "2026-01-01T21:41:40.426Z"
+        },
+        {
+          "id": "pin_brmkbwly",
+          "lat": 43.66301109887851,
+          "lng": -79.3584802452281,
+          "title": "shaans crib",
+          "description": "test",
+          "audioFile": "pin_brmkbwly.webm",
+          "createdAt": "2026-01-01T21:42:40.543Z"
+        },
+        {
+          "id": "pin_efol58k4",
+          "lat": 43.65409760021038,
+          "lng": -79.3974489326308,
+          "title": "Toronto Shrey Crib",
+          "description": "nothing",
+          "transcript": "this is Trey's crib where  I love to hang out and I love to get croissants I recommend you walk around this neighborhood in order to really get a feel for What's Happening Here",
+          "audioFile": "pin_efol58k4.webm",
+          "createdAt": "2026-01-01T22:18:51.377Z"
+        },
+        {
+          "id": "pin_y2zgm1vm",
+          "lat": 43.65876332635952,
+          "lng": -79.39548054967918,
+          "title": "campus ",
+          "description": "near school",
+          "transcript": "this is the best place to go find some things during school whether you're between classes or just heading towards campus you can find a lot of cool things here",
+          "audioFile": "pin_y2zgm1vm.webm",
+          "createdAt": "2026-01-01T22:20:44.978Z"
+        },
+        {
+          "id": "pin_vheb4fmt",
+          "lat": 43.66283197686127,
+          "lng": -79.40188385025583,
+          "title": "workouts",
+          "description": "nice gym",
+          "transcript": "if you're a local Toronto Hooper and you want to get a good run and you can pay 10 bucks to get a good run in at ACS as a guest there's a good run if you go to the top floor of the AC you'll have the opportunity to play basketball there's a lot of good people there go check it out",
+          "audioFile": "pin_vheb4fmt.webm",
+          "createdAt": "2026-01-01T22:21:18.436Z"
+        },
+        {
+          "id": "pin_6zjlx0xa",
+          "lat": 43.56010869853469,
+          "lng": -79.58205854568781,
+          "title": "backroads coffee",
+          "description": "nice coffee shop in port credit, good espresso",
+          "transcript": "synonym welcome to Backroads coffee here we have homemade specialty coffees you can get anything you want iced or hot and we have like seasonal decor and we have a backyard patio you can sit on we don't do Wi-Fi cuz we encourage Community Based and we have a bathroom and we like local people to come some days we do a market on the weekends and we've been here since 2010",
+          "audioFile": "pin_6zjlx0xa.webm",
+          "createdAt": "2026-01-03T16:12:27.617Z"
+        },
+        {
+          "id": "pin_yat74nt7",
+          "lat": 43.55828581848121,
+          "lng": -79.57196561831331,
+          "title": "hiawatha park",
+          "description": "good lake view, structure for kids",
+          "transcript": "Hiawatha Park is an amazing park that is right on Lake Ontario period there are lots of swings slides and other things for little kids to do period there is lots of other open space where you can  play baseball Frisbee and a lot of other sports or just hang around because there are benches period there is a beautiful view of the lake",
+          "audioFile": "pin_yat74nt7.webm",
+          "createdAt": "2026-01-03T16:13:49.047Z"
+        },
+        {
+          "id": "pin_ldr3iu9h",
+          "lat": 43.551558735363585,
+          "lng": -79.58509370311035,
+          "title": "posta",
+          "description": "good italian food, harbour view",
+          "transcript": "Posta is a great Italian restaurant in Port Credit  with a great view of the marina  where you're able to enjoy beautiful sunsets the food here is incredible very authentic  loved their food love their wood burning oven pizza and the parmesan wheel pasta",
+          "audioFile": "pin_ldr3iu9h.webm",
+          "createdAt": "2026-01-03T16:14:45.465Z"
+        }
+      ]
+    }
+  ]
+}

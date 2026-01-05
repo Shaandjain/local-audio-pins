@@ -1,0 +1,13 @@
+{
+  "name": "local-audio-pins-mcp",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "MCP server for Local Audio Pins - exposes geo-pinned voice notes to Claude",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}
