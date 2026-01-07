@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface Pin {
   id: string;
@@ -13,6 +14,7 @@ interface Pin {
   description: string;
   transcript: string;
   audioFile: string;
+  photoFile?: string;
   createdAt: string;
 }
 
@@ -104,6 +106,13 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
   const addMarkerForPin = useCallback((pin: Pin, map: maplibregl.Map) => {
     const popupContent = `
       <div style="padding: 20px; min-width: 260px; max-width: 300px;">
+        ${pin.photoFile ? `
+          <img 
+            src="/api/photos/${pin.photoFile}" 
+            alt="${pin.title || 'Pin photo'}"
+            style="width: 100%; height: 180px; object-fit: cover; border-radius: 12px; margin-bottom: 12px;"
+          />
+        ` : ''}
         <h3 style="font-weight: 600; color: #0A0A0A; font-size: 17px; margin-bottom: 6px; letter-spacing: -0.02em;">
           ${pin.title || 'Untitled Pin'}
         </h3>
@@ -356,6 +365,16 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
                         </button>
 
                         <div className="flex-1 min-w-0">
+                          {pin.photoFile && (
+                            <div className="relative w-full h-32 mb-2">
+                              <Image
+                                src={`/api/photos/${pin.photoFile}`}
+                                alt={pin.title || 'Pin photo'}
+                                fill
+                                className="object-cover rounded-lg"
+                              />
+                            </div>
+                          )}
                           <h3 className="font-medium text-foreground text-base truncate">
                             {pin.title || 'Untitled Pin'}
                           </h3>

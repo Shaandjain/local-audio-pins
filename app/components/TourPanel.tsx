@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { Pin } from './RecordingModal';
 import { formatDistance, estimateTourDistance } from '../utils/tourUtils';
 
@@ -80,6 +81,16 @@ export default function TourPanel({ pins, onClose, onPinClick }: TourPanelProps)
 
                     {/* Content */}
                     <div className="flex-1 min-w-0 pr-12">
+                      {pin.photoFile && (
+                        <div className="relative w-full h-24 mb-2">
+                          <Image
+                            src={`/api/photos/${pin.photoFile}`}
+                            alt={pin.title || 'Pin photo'}
+                            fill
+                            className="object-cover rounded-lg"
+                          />
+                        </div>
+                      )}
                       <h3 className="font-medium text-foreground text-base">
                         {pin.title || 'Untitled Pin'}
                       </h3>

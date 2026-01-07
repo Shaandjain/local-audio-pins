@@ -15,6 +15,7 @@ interface Collection {
     title: string;
     description: string;
     audioFile: string;
+    photoFile?: string;
     createdAt: string;
   }>;
 }

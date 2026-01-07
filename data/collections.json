@@ -85,6 +85,27 @@
           "transcript": "Posta is a great Italian restaurant in Port Credit  with a great view of the marina  where you're able to enjoy beautiful sunsets the food here is incredible very authentic  loved their food love their wood burning oven pizza and the parmesan wheel pasta",
           "audioFile": "pin_ldr3iu9h.webm",
           "createdAt": "2026-01-03T16:14:45.465Z"
+        },
+        {
+          "id": "pin_k489b6qc",
+          "lat": 43.507835048690936,
+          "lng": -79.62746841698697,
+          "title": "Ontario Racquet Club",
+          "description": "great gym with tennis and squash courts",
+          "transcript": "",
+          "audioFile": "pin_k489b6qc.webm",
+          "photoFile": "pin_k489b6qc.jpg",
+          "createdAt": "2026-01-07T05:04:23.064Z"
+        },
+        {
+          "id": "pin_wzexn2ey",
+          "lat": 43.562831487299434,
+          "lng": -79.5878284684963,
+          "title": "port credit secondary school",
+          "description": "high school with a regional sci-tech program",
+          "transcript": "You should take mr. nole's class, he teaches computer engineering. Also check out the nearby plaza with pizza and tim hortons.",
+          "audioFile": "pin_wzexn2ey.webm",
+          "createdAt": "2026-01-07T05:39:16.354Z"
         }
       ]
     }
