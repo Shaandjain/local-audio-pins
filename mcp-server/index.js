@@ -35,6 +35,7 @@ function listPins(collectionId) {
     description: pin.description,
     transcript: pin.transcript || '',
     audioPath: `/api/audio/${pin.audioFile}`,
+    photoPath: pin.photoFile ? `/api/photos/${pin.photoFile}` : null,
   }));
 }
 
@@ -46,6 +47,7 @@ function getPin(pinId) {
       return {
         ...pin,
         audioPath: `/api/audio/${pin.audioFile}`,
+        photoPath: pin.photoFile ? `/api/photos/${pin.photoFile}` : null,
         collectionId: collection.id,
       };
     }
@@ -72,6 +74,7 @@ function getPinsInArea(collectionId, north, south, east, west) {
     description: pin.description,
     transcript: pin.transcript || '',
     audioPath: `/api/audio/${pin.audioFile}`,
+    photoPath: pin.photoFile ? `/api/photos/${pin.photoFile}` : null,
   }));
 }
 
@@ -110,7 +113,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "list_pins",
         description:
-          "List all pins in a collection. Returns an array of pins with their IDs, coordinates (lat/lng), titles, descriptions, transcripts of what was said, and audio paths. Useful for getting an overview of all audio notes in a location and understanding what people said at each place.",
+          "List all pins in a collection. Returns an array of pins with their IDs, coordinates (lat/lng), titles, descriptions, transcripts of what was said, audio paths, and photo paths (if available). Useful for getting an overview of all audio notes in a location and understanding what people said at each place.",
         inputSchema: {
           type: "object",
           properties: {
@@ -125,7 +128,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "get_pin",
         description:
-          "Get a single pin by its ID. Returns the pin's location (lat/lng), title, description, transcript of the audio recording, audio path, creation date, and which collection it belongs to.",
+          "Get a single pin by its ID. Returns the pin's location (lat/lng), title, description, transcript of the audio recording, audio path, photo path (if available), creation date, and which collection it belongs to.",
         inputSchema: {
           type: "object",
           properties: {
@@ -140,7 +143,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "get_pins_in_area",
         description:
-          "Get all pins within a specified geographic bounding box. Useful for finding audio pins in a specific region, neighborhood, or area. Returns pins with their coordinates, titles, descriptions, and transcripts. Great for creating walking tours or exploring specific areas.",
+          "Get all pins within a specified geographic bounding box. Useful for finding audio pins in a specific region, neighborhood, or area. Returns pins with their coordinates, titles, descriptions, transcripts, audio paths, and photo paths (if available). Great for creating walking tours or exploring specific areas.",
         inputSchema: {
           type: "object",
           properties: {

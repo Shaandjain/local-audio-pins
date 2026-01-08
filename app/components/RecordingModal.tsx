@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 
 export interface Pin {
   id: string;
@@ -10,6 +11,7 @@ export interface Pin {
   description: string;
   transcript: string;
   audioFile: string;
+  photoFile?: string;
   createdAt: string;
 }
 
@@ -38,6 +40,9 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
   const [isSaving, setIsSaving] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
@@ -51,11 +56,46 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
       if (audioUrl) {
         URL.revokeObjectURL(audioUrl);
       }
+      if (photoUrl) {
+        URL.revokeObjectURL(photoUrl);
+      }
       if (speechRecognitionRef.current) {
         speechRecognitionRef.current.stop();
       }
     };
-  }, [audioUrl]);
+  }, [audioUrl, photoUrl]);
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('Image must be smaller than 10MB');
+        return;
+      }
+      setPhotoFile(file);
+      if (photoUrl) {
+        URL.revokeObjectURL(photoUrl);
+      }
+      setPhotoUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    if (photoUrl) {
+      URL.revokeObjectURL(photoUrl);
+    }
+    setPhotoFile(null);
+    setPhotoUrl(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const startRecording = async () => {
     try {
@@ -157,6 +197,9 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
       formData.append('description', description.trim());
       formData.append('transcript', transcript);
       formData.append('audio', audioBlob, 'recording.webm');
+      if (photoFile) {
+        formData.append('photo', photoFile);
+      }
 
       const response = await fetch('/api/collections/default/pins', {
         method: 'POST',
@@ -237,6 +280,48 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
               placeholder="What makes this place special?"
               rows={2}
             />
+          </div>
+
+          {/* Photo Upload */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Photo
+            </label>
+            <div className="space-y-3">
+              {!photoUrl ? (
+                <label className="flex items-center justify-center gap-2 px-5 py-3 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-border-strong transition-all duration-200">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoSelect}
+                    className="hidden"
+                  />
+                  <svg className="w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-6 18l7.5-7.5m0 0a2.25 2.25 0 003.182-3.182l-7.5-7.5m-3.182 0L9.818 9.818a2.25 2.25 0 000 3.182z" />
+                  </svg>
+                  <span className="text-sm text-muted">Add a photo</span>
+                </label>
+              ) : (
+                <div className="relative w-full h-48">
+                  <Image
+                    src={photoUrl!}
+                    alt="Preview"
+                    fill
+                    className="object-cover rounded-xl border border-border"
+                  />
+                  <button
+                    onClick={handleRemovePhoto}
+                    className="absolute top-2 right-2 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md hover:bg-surface-hover transition-all duration-200"
+                    aria-label="Remove photo"
+                  >
+                    <svg className="w-4 h-4 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Audio Recording */}

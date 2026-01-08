@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import path from 'path';
 
 const DATA_PATH = path.join(process.cwd(), 'data', 'collections.json');
 const AUDIO_PATH = path.join(process.cwd(), 'data', 'audio');
+const PHOTOS_PATH = path.join(process.cwd(), 'data', 'photos');
 
 interface Pin {
   id: string;
@@ -13,6 +14,7 @@ interface Pin {
   description: string;
   transcript: string;
   audioFile: string;
+  photoFile?: string;
   createdAt: string;
 }
 
@@ -70,9 +72,20 @@ export async function POST(
     const description = formData.get('description') as string;
     const transcript = formData.get('transcript') as string;
     const audio = formData.get('audio') as File;
+    const photo = formData.get('photo') as File | null;
 
     if (!audio || !lat || !lng) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    // Validate photo if provided
+    if (photo) {
+      if (!photo.type.startsWith('image/')) {
+        return NextResponse.json({ error: 'Photo must be an image file' }, { status: 400 });
+      }
+      if (photo.size > 10 * 1024 * 1024) {
+        return NextResponse.json({ error: 'Photo must be smaller than 10MB' }, { status: 400 });
+      }
     }
 
     // Read current data
@@ -83,6 +96,14 @@ export async function POST(
       return NextResponse.json({ error: 'Collection not found' }, { status: 404 });
     }
 
+    // Ensure directories exist
+    if (!existsSync(AUDIO_PATH)) {
+      mkdirSync(AUDIO_PATH, { recursive: true });
+    }
+    if (!existsSync(PHOTOS_PATH)) {
+      mkdirSync(PHOTOS_PATH, { recursive: true });
+    }
+
     // Generate pin ID and save audio file
     const pinId = generateId();
     const audioFileName = `${pinId}.webm`;
@@ -90,6 +111,16 @@ export async function POST(
 
     const audioBuffer = Buffer.from(await audio.arrayBuffer());
     writeFileSync(audioFilePath, audioBuffer);
+
+    // Save photo if provided
+    let photoFileName: string | undefined;
+    if (photo) {
+      const ext = path.extname(photo.name) || '.jpg';
+      photoFileName = `${pinId}${ext}`;
+      const photoFilePath = path.join(PHOTOS_PATH, photoFileName);
+      const photoBuffer = Buffer.from(await photo.arrayBuffer());
+      writeFileSync(photoFilePath, photoBuffer);
+    }
 
     // Create pin object
     const pin: Pin = {
@@ -100,6 +131,7 @@ export async function POST(
       description: description || '',
       transcript: transcript || '',
       audioFile: audioFileName,
+      photoFile: photoFileName,
       createdAt: new Date().toISOString(),
     };
 

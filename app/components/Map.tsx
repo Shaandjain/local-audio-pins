@@ -102,6 +102,13 @@ export default function MapView() {
 
     const popupContent = `
       <div style="padding: 20px; min-width: 260px; max-width: 300px;">
+        ${pin.photoFile ? `
+          <img 
+            src="/api/photos/${pin.photoFile}" 
+            alt="${pin.title || 'Pin photo'}"
+            style="width: 100%; height: 180px; object-fit: cover; border-radius: 12px; margin-bottom: 12px;"
+          />
+        ` : ''}
         <h3 style="font-weight: 600; color: #0A0A0A; font-size: 17px; margin-bottom: 6px; letter-spacing: -0.02em;">
           ${pin.title || 'Untitled Pin'}
         </h3>
