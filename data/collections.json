@@ -106,6 +106,96 @@
           "transcript": "You should take mr. nole's class, he teaches computer engineering. Also check out the nearby plaza with pizza and tim hortons.",
           "audioFile": "pin_wzexn2ey.webm",
           "createdAt": "2026-01-07T05:39:16.354Z"
+        },
+        {
+          "id": "pin_aegy0glx",
+          "lat": 43.66052350279679,
+          "lng": -79.39675006084397,
+          "title": "Myhal Engineering Building",
+          "description": "this is a place where engineers study",
+          "transcript": "interested",
+          "audioFile": "pin_aegy0glx.webm",
+          "photoFile": "pin_aegy0glx.jpg",
+          "createdAt": "2026-01-08T14:15:45.382Z"
+        },
+        {
+          "id": "pin_2undk5i0",
+          "lat": 43.664950083587854,
+          "lng": -79.40574637169236,
+          "title": "Major House",
+          "description": "fun place to hangout",
+          "transcript": "like this is the major house  welcome there's a lot of cool things nearby",
+          "audioFile": "pin_2undk5i0.webm",
+          "createdAt": "2026-01-14T14:50:43.596Z"
+        },
+        {
+          "id": "pin_4zs8kw2s",
+          "lat": 43.64199401299135,
+          "lng": -79.42238288318732,
+          "title": "Youssef's Place",
+          "description": "This is where youssef lives, lots of cool shops and places to eat nearby.",
+          "transcript": "this is where Yusuf lives one of my teammates and  he's a really great guy to meet up with he he likes to chat a lot and we like to eat food so it's a great place to go visit him if you're ever in the area near Queen Street  and maybe headed towards the Boat Club",
+          "audioFile": "pin_4zs8kw2s.webm",
+          "photoFile": "pin_4zs8kw2s.jpg",
+          "createdAt": "2026-01-24T19:01:12.065Z"
+        },
+        {
+          "id": "pin_4stbf2rf",
+          "lat": 43.655,
+          "lng": -79.385,
+          "title": "MCP Test Pin",
+          "description": "Created via MCP tool",
+          "transcript": "This pin was created programmatically through the MCP server to test the create_audio_pin functionality.",
+          "audioFile": "pin_4stbf2rf.webm",
+          "createdAt": "2026-02-03T18:12:36.399Z"
+        },
+        {
+          "id": "pin_7m0b565s",
+          "lat": 43.665859681750334,
+          "lng": -79.38698552271913,
+          "title": "Chase's Crib",
+          "description": "A place to chill at Chase's house. Fun games nights, etc.,",
+          "transcript": "so this is Chase's place it's a fun place to hang out and  if you want to play some games maybe have some wine it's a good place to go",
+          "audioFile": "pin_7m0b565s.webm",
+          "createdAt": "2026-02-03T20:05:40.435Z"
+        },
+        {
+          "id": "pin_9ber6fw2",
+          "lat": 43.67442527674274,
+          "lng": -79.39663878878207,
+          "title": "Adrak",
+          "description": "The best indian food in toronto",
+          "transcript": "this is other luck it's the best Indian food restaurant in Toronto  I would say a drug is  arguably the closest thing to  eating authentic Michelin star Indian food in India  but in the heart of Yorkville",
+          "audioFile": "pin_9ber6fw2.webm",
+          "photoFile": "pin_9ber6fw2.jpg",
+          "category": "Food",
+          "createdAt": "2026-02-03T20:12:59.440Z"
+        },
+        {
+          "id": "ai_pin_yg1z44i5",
+          "lat": 43.6535,
+          "lng": -79.38340000000001,
+          "title": "St. Lawrence Market's Peameal Bacon Bliss",
+          "description": "Discover the iconic peameal bacon sandwich at St. Lawrence Market. A must-try Canadian classic with a savory heritage.",
+          "transcript": "Welcome to St. Lawrence Market! Treat yourself to a famous peameal bacon sandwich, a beloved local delicacy. This juicy delight was once dubbed 'Toronto's Signature Sandwich' and is a true taste of the city.",
+          "audioFile": "ai_pin_yg1z44i5.mp3",
+          "category": "Food",
+          "createdAt": "2026-02-04T20:05:39.674Z",
+          "isAiGenerated": true,
+          "aiGenerationId": "job_5suvxydpecm9"
+        },
+        {
+          "id": "ai_pin_jq60tla7",
+          "lat": 43.6535,
+          "lng": -79.38340000000001,
+          "title": "Flatiron Building's Unique Charm",
+          "description": "Discover a wedge-shaped marvel, pre-dating NYC's iconic sibling by a decade!",
+          "transcript": "At 49 Wellington Street East, the Gooderham Building, or Flatiron, fascinates with its triangular shape and vibrant murals. Built in 1892, it's a stunning example of Romanesque architecture.",
+          "audioFile": "ai_pin_jq60tla7.mp3",
+          "category": "Architecture",
+          "createdAt": "2026-02-04T20:05:46.139Z",
+          "isAiGenerated": true,
+          "aiGenerationId": "job_5suvxydpecm9"
         }
       ]
     }
