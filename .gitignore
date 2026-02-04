@@ -42,3 +42,15 @@ next-env.d.ts
 
 # audio files (keep .gitkeep)
 data/audio/*.webm
+data/audio/*.mp3
+
+# generated data (keep .gitkeep)
+data/jobs/
+data/preferences/
+data/tours/
+data/photos/*.jpg
+data/photos/*.png
+data/audit.log
+
+# claude plans
+.claude/plans/
