@@ -100,7 +100,7 @@ export default async function SharePage({ params }: PageProps) {
         </div>
         <h1 className="text-2xl font-semibold text-foreground mb-2 tracking-tight">This collection is private</h1>
         <p className="text-muted mb-6">The owner has not made this collection publicly available.</p>
-        <a href="/" className="btn-primary rounded-full px-6 py-2.5 text-sm font-medium">Go to Audio Pins</a>
+        <a href="/app" className="btn-primary rounded-full px-6 py-2.5 text-sm font-medium">Go to Audio Pins</a>
       </div>
     );
   }
@@ -116,7 +116,7 @@ export default async function SharePage({ params }: PageProps) {
         </div>
         <h1 className="text-2xl font-semibold text-foreground mb-2 tracking-tight">Collection not found</h1>
         <p className="text-muted mb-6">This collection may have been removed or the link is incorrect.</p>
-        <a href="/" className="btn-primary rounded-full px-6 py-2.5 text-sm font-medium">Go to Audio Pins</a>
+        <a href="/app" className="btn-primary rounded-full px-6 py-2.5 text-sm font-medium">Go to Audio Pins</a>
       </div>
     );
   }

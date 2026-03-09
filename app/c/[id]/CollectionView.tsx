@@ -657,7 +657,7 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
         </div>
         <h1 className="font-heading text-3xl text-foreground mb-2">Collection not found</h1>
         <p className="text-muted mb-6">{error}</p>
-        <Link href="/" className="btn rounded-full font-semibold" style={{ background: '#c8e636', color: '#1a1a1a' }}>Go back home</Link>
+        <Link href="/app" className="btn rounded-full font-semibold" style={{ background: '#c8e636', color: '#1a1a1a' }}>Go back home</Link>
       </div>
     );
   }

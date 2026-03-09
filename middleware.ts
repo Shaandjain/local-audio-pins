@@ -8,11 +8,16 @@ export default withAuth({
 
 export const config = {
   matcher: [
+    // Protect the main app route
+    '/app/:path*',
+    // Protect collection pages
+    '/collections/:path*',
+    '/c/:path*',
     // Protect API routes except auth, public endpoints, and static files
     '/api/collections/:path*',
     '/api/tours/:path*',
     '/api/preferences/:path*',
     '/api/areas/:path*',
-    // Note: /api/public/*, /api/audio/*, /api/photos/*, /share/*, /u/* are NOT protected
+    // Note: /, /auth/*, /share/*, /u/*, /explore, /api/public/*, /api/audio/*, /api/photos/* are NOT protected
   ],
 };

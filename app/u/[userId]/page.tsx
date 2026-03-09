@@ -67,7 +67,7 @@ export default async function UserProfilePage({ params }: PageProps) {
         </div>
         <h1 className="text-2xl font-semibold text-foreground mb-2 tracking-tight">User not found</h1>
         <p className="text-muted mb-6">This profile doesn&apos;t exist or has been removed.</p>
-        <a href="/" className="btn-primary rounded-full px-6 py-2.5 text-sm font-medium">Go to Audio Pins</a>
+        <a href="/app" className="btn-primary rounded-full px-6 py-2.5 text-sm font-medium">Go to Audio Pins</a>
       </div>
     );
   }

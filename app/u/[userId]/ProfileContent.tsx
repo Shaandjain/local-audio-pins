@@ -120,7 +120,7 @@ export default function ProfileContent({ user }: { user: ProfileUser }) {
 
         {/* Footer */}
         <div className="mt-12 text-center">
-          <a href="/" className="text-sm text-muted hover:text-foreground transition-colors">
+          <a href="/app" className="text-sm text-muted hover:text-foreground transition-colors">
             Audio Pins
           </a>
         </div>
