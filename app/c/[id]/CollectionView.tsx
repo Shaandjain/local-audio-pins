@@ -61,6 +61,24 @@ interface CollectionViewProps {
   collectionId: string;
 }
 
+const CATEGORY_COLORS: Record<string, { bg: string; border: string; icon: string }> = {
+  GENERAL: { bg: '#ffffff', border: '#888888', icon: '#888888' },
+  FOOD: { bg: '#fff8eb', border: '#f59e0b', icon: '#f59e0b' },
+  HISTORY: { bg: '#fef3c7', border: '#a16207', icon: '#a16207' },
+  NATURE: { bg: '#f0fdf4', border: '#22c55e', icon: '#22c55e' },
+  CULTURE: { bg: '#faf5ff', border: '#a855f7', icon: '#a855f7' },
+  ARCHITECTURE: { bg: '#eff6ff', border: '#3b82f6', icon: '#3b82f6' },
+};
+
+const CATEGORY_ICONS: Record<string, string> = {
+  GENERAL: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`,
+  FOOD: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>`,
+  HISTORY: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>`,
+  NATURE: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg>`,
+  CULTURE: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><path d="M17.5 10.5c-1.5-1-3.5-1-5 0"/><path d="M3 19.5C3 10 10 3 19 3"/><path d="M3 13c3-5 8-8 14-8"/></svg>`,
+  ARCHITECTURE: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>`,
+};
+
 function formatRelativeTime(dateString: string): string {
   const date = new Date(dateString);
   const now = new Date();
@@ -104,7 +122,8 @@ function EditModal({
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
       variants={modalOverlayVariants}
       initial="hidden"
@@ -112,15 +131,15 @@ function EditModal({
       exit="exit"
     >
       <motion.div
-        className="bg-white rounded-2xl border border-border p-6 w-full max-w-md mx-4"
-        style={{ boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)' }}
+        className="glass-card p-6 w-full max-w-md mx-4"
         onClick={(e) => e.stopPropagation()}
         variants={modalContentVariants}
         initial="hidden"
         animate="visible"
         exit="exit"
       >
-        <h2 className="text-lg font-semibold text-foreground mb-4">Edit Collection</h2>
+        <span className="section-label">Edit</span>
+        <h2 className="font-heading text-xl text-foreground mt-1 mb-4">Edit Collection</h2>
         <div className="space-y-4">
           <div>
             <label htmlFor="edit-name" className="block text-sm font-medium text-foreground mb-1">Name</label>
@@ -148,7 +167,8 @@ function EditModal({
           <button
             onClick={() => onSave(name.trim(), description.trim())}
             disabled={!name.trim()}
-            className="btn-primary rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn rounded-full font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: '#c8e636', color: '#1a1a1a' }}
           >
             Save Changes
           </button>
@@ -173,7 +193,8 @@ function DeleteModal({
 }) {
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
       variants={modalOverlayVariants}
       initial="hidden"
@@ -181,15 +202,14 @@ function DeleteModal({
       exit="exit"
     >
       <motion.div
-        className="bg-white rounded-2xl border border-border p-6 w-full max-w-sm mx-4"
-        style={{ boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)' }}
+        className="glass-card p-6 w-full max-w-sm mx-4"
         onClick={(e) => e.stopPropagation()}
         variants={modalContentVariants}
         initial="hidden"
         animate="visible"
         exit="exit"
       >
-        <h2 className="text-lg font-semibold text-foreground mb-2">Delete Collection</h2>
+        <h2 className="font-heading text-xl text-foreground mb-2">Delete Collection</h2>
         <p className="text-sm text-muted mb-6">
           Are you sure you want to delete <strong>{collectionName}</strong>? This will permanently remove all pins in this collection. This action cannot be undone.
         </p>
@@ -233,7 +253,8 @@ function PinActionModal({
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
       variants={modalOverlayVariants}
       initial="hidden"
@@ -241,15 +262,14 @@ function PinActionModal({
       exit="exit"
     >
       <motion.div
-        className="bg-white rounded-2xl border border-border p-6 w-full max-w-sm mx-4"
-        style={{ boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)' }}
+        className="glass-card p-6 w-full max-w-sm mx-4"
         onClick={(e) => e.stopPropagation()}
         variants={modalContentVariants}
         initial="hidden"
         animate="visible"
         exit="exit"
       >
-        <h2 className="text-lg font-semibold text-foreground mb-1">
+        <h2 className="font-heading text-xl text-foreground mb-1">
           {action === 'move' ? 'Move' : 'Copy'} Pin
         </h2>
         <p className="text-sm text-muted mb-4">
@@ -266,12 +286,13 @@ function PinActionModal({
                   onClick={() => setSelectedId(c.id)}
                   className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${
                     selectedId === c.id
-                      ? 'bg-foreground text-white'
-                      : 'hover:bg-surface-hover text-foreground'
+                      ? 'text-foreground font-medium'
+                      : 'hover:bg-white/60 text-foreground'
                   }`}
+                  style={selectedId === c.id ? { background: '#c8e636' } : undefined}
                 >
                   <span className="font-medium">{c.name}</span>
-                  <span className={`ml-2 text-xs ${selectedId === c.id ? 'text-white/70' : 'text-muted-light'}`}>
+                  <span className={`ml-2 text-xs ${selectedId === c.id ? 'text-foreground/70' : 'text-muted-light'}`}>
                     {c.pinCount} {c.pinCount === 1 ? 'pin' : 'pins'}
                   </span>
                 </button>
@@ -284,7 +305,8 @@ function PinActionModal({
           <button
             onClick={handleConfirm}
             disabled={!selectedId || loading}
-            className="btn-primary rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn rounded-full font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: '#c8e636', color: '#1a1a1a' }}
           >
             {loading ? (action === 'move' ? 'Moving...' : 'Copying...') : (action === 'move' ? 'Move' : 'Copy')}
           </button>
@@ -363,33 +385,55 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
     });
   }, []);
 
-  const createMarkerElement = useCallback(() => {
+  const createMarkerElement = useCallback((category?: string) => {
+    const cat = (category || 'GENERAL').toUpperCase();
+    const colors = CATEGORY_COLORS[cat] || CATEGORY_COLORS.GENERAL;
+    const icon = CATEGORY_ICONS[cat] || CATEGORY_ICONS.GENERAL;
+
     const el = document.createElement('div');
     el.className = 'custom-marker';
     el.innerHTML = `
-      <div style="
-        width: 36px;
-        height: 36px;
-        background: #171717;
-        border-radius: 50%;
-        border: 3px solid white;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
-      ">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-          <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-        </svg>
+      <div style="display: flex; flex-direction: column; align-items: center;">
+        <div style="
+          width: 38px;
+          height: 38px;
+          background: ${colors.bg};
+          border-radius: 12px;
+          border: 2.5px solid ${colors.border};
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: transform 0.15s ease, box-shadow 0.15s ease;
+          color: ${colors.icon};
+        ">
+          ${icon}
+        </div>
+        <div style="
+          width: 2px;
+          height: 10px;
+          background: ${colors.border};
+          border-radius: 1px;
+          margin-top: -1px;
+        "></div>
+        <div style="
+          width: 6px;
+          height: 6px;
+          background: ${colors.border};
+          border-radius: 50%;
+          margin-top: -1px;
+          opacity: 0.5;
+        "></div>
       </div>
     `;
     return el;
   }, []);
 
   const addMarkerForPin = useCallback((pin: Pin, map: maplibregl.Map) => {
+    const cat = (pin.category || 'GENERAL').toUpperCase();
+    const catColors = CATEGORY_COLORS[cat] || CATEGORY_COLORS.GENERAL;
+
     const popupContent = `
       <div style="padding: 20px; min-width: 260px; max-width: 300px;">
         ${pin.photoFile ? `
@@ -401,17 +445,23 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
             />
           </a>
         ` : ''}
-        <h3 style="font-weight: 600; color: #0A0A0A; font-size: 17px; margin-bottom: 6px; letter-spacing: -0.02em;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+          <div style="width: 8px; height: 8px; border-radius: 50%; background: ${catColors.border}; flex-shrink: 0;"></div>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #999;">
+            ${(pin.category || 'General')}
+          </span>
+        </div>
+        <h3 style="font-weight: 600; color: #1a1a1a; font-size: 17px; margin-bottom: 6px; letter-spacing: -0.02em;">
           ${pin.title || 'Untitled Pin'}
         </h3>
-        ${pin.description ? `<p style="font-size: 14px; color: #525252; margin-bottom: 14px; line-height: 1.6;">${pin.description}</p>` : ''}
+        ${pin.description ? `<p style="font-size: 14px; color: #666; margin-bottom: 14px; line-height: 1.6;">${pin.description}</p>` : ''}
         <audio controls src="/api/audio/${pin.audioFile}" style="width: 100%; height: 40px; margin-bottom: 12px;" preload="none"></audio>
-        <div style="font-size: 12px; color: #A3A3A3;">${formatRelativeTime(pin.createdAt)}</div>
+        <div style="font-size: 12px; color: #999;">${formatRelativeTime(pin.createdAt)}</div>
       </div>
     `;
 
     const popup = new maplibregl.Popup({
-      offset: 28,
+      offset: 38,
       closeButton: true,
       closeOnClick: false,
       maxWidth: '340px',
@@ -419,7 +469,7 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
 
     popupsRef.current.set(pin.id, popup);
 
-    const markerEl = createMarkerElement();
+    const markerEl = createMarkerElement(pin.category);
 
     markerEl.addEventListener('click', () => {
       closeAllPopups();
@@ -441,6 +491,8 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
       style: 'https://tiles.openfreemap.org/styles/liberty',
       center: [collection.center.lng, collection.center.lat],
       zoom: 12,
+      pitch: 50,
+      bearing: -10,
     });
 
     mapInstance.current = map;
@@ -453,6 +505,14 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
     });
 
     map.on('load', () => {
+      // Add 3D terrain
+      map.addSource('terrain-dem', {
+        type: 'raster-dem',
+        url: 'https://demotiles.maplibre.org/terrain-tiles/tiles.json',
+        tileSize: 256,
+      });
+      map.setTerrain({ source: 'terrain-dem', exaggeration: 1.5 });
+
       collection.pins.forEach((pin) => addMarkerForPin(pin, map));
 
       if (collection.pins.length > 0) {
@@ -595,9 +655,9 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
               d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
           </svg>
         </div>
-        <h1 className="text-2xl font-semibold text-foreground mb-2 tracking-tight">Collection not found</h1>
+        <h1 className="font-heading text-3xl text-foreground mb-2">Collection not found</h1>
         <p className="text-muted mb-6">{error}</p>
-        <Link href="/" className="btn-primary rounded-full">Go back home</Link>
+        <Link href="/" className="btn rounded-full font-semibold" style={{ background: '#c8e636', color: '#1a1a1a' }}>Go back home</Link>
       </div>
     );
   }
@@ -611,13 +671,7 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
         {/* Header overlay */}
         <div className="absolute top-4 left-4 right-4 flex items-start justify-between pointer-events-none">
           <div
-            className="px-5 py-4 pointer-events-auto rounded-2xl border border-border"
-            style={{
-              background: 'rgba(255, 255, 255, 0.9)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
-            }}
+            className="glass-card px-5 py-4 pointer-events-auto"
           >
             <Link href="/collections" className="flex items-center gap-2 text-muted hover:text-foreground transition-all duration-200 mb-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -625,7 +679,8 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
               </svg>
               <span className="text-sm">My Collections</span>
             </Link>
-            <h1 className="text-xl font-semibold text-foreground tracking-tight">{collection.name}</h1>
+            <span className="section-label">Collection</span>
+            <h1 className="font-heading text-2xl text-foreground mt-1">{collection.name}</h1>
             <p className="text-sm text-muted-light mt-0.5">
               {collection.pins.length} {collection.pins.length === 1 ? 'pin' : 'pins'}
             </p>
@@ -635,8 +690,8 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
             {/* Edit button */}
             <button
               onClick={() => setShowEditModal(true)}
-              className="w-10 h-10 rounded-full bg-white border border-border hover:bg-surface-hover transition-all duration-200 flex items-center justify-center"
-              style={{ boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }}
+              className="w-10 h-10 rounded-full bg-white/85 backdrop-blur-md hover:bg-white transition-all duration-200 flex items-center justify-center"
+              style={{ boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)', border: '1px solid rgba(0,0,0,0.06)' }}
               aria-label="Edit collection"
               title="Edit collection"
             >
@@ -648,8 +703,8 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
             {/* Delete button */}
             <button
               onClick={() => setShowDeleteModal(true)}
-              className="w-10 h-10 rounded-full bg-white border border-border hover:bg-surface-hover transition-all duration-200 flex items-center justify-center"
-              style={{ boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }}
+              className="w-10 h-10 rounded-full bg-white/85 backdrop-blur-md hover:bg-white transition-all duration-200 flex items-center justify-center"
+              style={{ boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)', border: '1px solid rgba(0,0,0,0.06)' }}
               aria-label="Delete collection"
               title="Delete collection"
             >
@@ -660,8 +715,8 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
 
             <Link
               href="/?hint=add"
-              className="w-10 h-10 rounded-full bg-white border border-border hover:bg-surface-hover transition-all duration-200 flex items-center justify-center"
-              style={{ boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }}
+              className="w-10 h-10 rounded-full bg-white/85 backdrop-blur-md hover:bg-white transition-all duration-200 flex items-center justify-center"
+              style={{ boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)', border: '1px solid rgba(0,0,0,0.06)' }}
               aria-label="Add new pin"
               title="Add new pin"
             >
@@ -673,8 +728,8 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
             {!showPinsList && (
               <button
                 onClick={() => setShowPinsList(true)}
-                className="w-10 h-10 rounded-full bg-white border border-border hover:bg-surface-hover transition-all duration-200 flex items-center justify-center"
-                style={{ boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }}
+                className="w-10 h-10 rounded-full bg-white/85 backdrop-blur-md hover:bg-white transition-all duration-200 flex items-center justify-center"
+                style={{ boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)', border: '1px solid rgba(0,0,0,0.06)' }}
                 aria-label="Show pins list"
                 title="Show pins list"
               >
@@ -691,16 +746,25 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
       <AnimatePresence>
         {showPinsList && (
           <motion.div
-            className="w-full lg:w-[400px] overflow-hidden flex flex-col border-t lg:border-t-0 lg:border-l border-border bg-white"
-            style={{ flexShrink: 0 }}
+            className="w-full lg:w-[400px] overflow-hidden flex flex-col"
+            style={{
+              flexShrink: 0,
+              background: 'rgba(255, 255, 255, 0.92)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              borderLeft: '1px solid rgba(0,0,0,0.06)',
+            }}
             initial={prefersReducedMotion ? false : { x: 400, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={prefersReducedMotion ? { opacity: 0 } : { x: 400, opacity: 0 }}
             transition={spring}
           >
             {/* Header with close button */}
-            <div className="px-6 py-5 border-b border-border flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-foreground tracking-tight">All Pins</h2>
+            <div className="px-6 py-5 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+              <div>
+                <span className="section-label">Pins</span>
+                <h2 className="font-heading text-xl text-foreground mt-1">All Pins</h2>
+              </div>
               <button
                 onClick={() => setShowPinsList(false)}
                 className="w-9 h-9 text-muted hover:text-foreground rounded-full hover:bg-surface-hover flex items-center justify-center transition-all duration-200"
@@ -726,20 +790,24 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
                   </div>
                   <h3 className="font-medium text-foreground text-lg mb-1">No pins yet</h3>
                   <p className="text-sm text-muted mb-5">Be the first to add a voice note!</p>
-                  <Link href="/?hint=add" className="btn-primary rounded-full">Add a pin</Link>
+                  <Link href="/?hint=add" className="btn rounded-full font-semibold" style={{ background: '#c8e636', color: '#1a1a1a' }}>Add a pin</Link>
                 </div>
               ) : (
                 <motion.ul
-                  className="divide-y divide-border"
+                  className="divide-y"
+                  style={{ borderColor: 'rgba(0,0,0,0.04)' }}
                   variants={listContainer}
                   initial="hidden"
                   animate="show"
                 >
-                  {collection.pins.map((pin) => (
+                  {collection.pins.map((pin) => {
+                    const cat = (pin.category || 'GENERAL').toUpperCase();
+                    const catColor = CATEGORY_COLORS[cat] || CATEGORY_COLORS.GENERAL;
+                    return (
                     <motion.li key={pin.id} className="relative" variants={listItem}>
                       <button
                         onClick={() => handlePinClick(pin)}
-                        className="w-full px-6 py-4 text-left hover:bg-surface-hover transition-all duration-200 outline-none"
+                        className="w-full px-6 py-4 text-left hover:bg-white/60 transition-all duration-200 outline-none"
                       >
                         <div className="flex items-start gap-4">
                           {/* Play button */}
@@ -748,16 +816,19 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
                               e.stopPropagation();
                               handlePlayAudio(pin.id);
                             }}
-                            className="flex-shrink-0 w-10 h-10 bg-surface-hover hover:bg-border rounded-full
-                                     flex items-center justify-center transition-all duration-200"
+                            className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200"
+                            style={{
+                              background: playingPinId === pin.id ? '#c8e636' : 'rgba(0,0,0,0.04)',
+                              color: '#1a1a1a',
+                            }}
                             aria-label={playingPinId === pin.id ? 'Pause' : 'Play'}
                           >
                             {playingPinId === pin.id ? (
-                              <svg className="w-4 h-4 text-foreground" fill="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                                 <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
                               </svg>
                             ) : (
-                              <svg className="w-4 h-4 text-foreground ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                                 <path d="M8 5v14l11-7z" />
                               </svg>
                             )}
@@ -776,15 +847,20 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
                             )}
                             <h3 className="font-medium text-foreground text-base">
                               <span className="flex items-center gap-2 min-w-0">
+                                <span
+                                  className="w-2 h-2 rounded-full flex-shrink-0"
+                                  style={{ background: catColor.border }}
+                                />
                                 <span className="truncate flex-1">{pin.title || 'Untitled Pin'}</span>
                                 {isRecentPin(pin.createdAt) && (
                                   <motion.span
-                                    className="inline-flex items-center px-2 py-0.5 rounded-full border border-border bg-surface-hover text-[10px] font-medium text-foreground"
+                                    className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium"
+                                    style={{ background: '#c8e636', color: '#1a1a1a' }}
                                     animate={prefersReducedMotion ? {} : {
                                       boxShadow: [
-                                        '0 0 0 0 rgba(23, 23, 23, 0)',
-                                        '0 0 0 4px rgba(23, 23, 23, 0.08)',
-                                        '0 0 0 0 rgba(23, 23, 23, 0)',
+                                        '0 0 0 0 rgba(200, 230, 54, 0)',
+                                        '0 0 0 4px rgba(200, 230, 54, 0.2)',
+                                        '0 0 0 0 rgba(200, 230, 54, 0)',
                                       ],
                                     }}
                                     transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
@@ -811,7 +887,7 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
                               e.stopPropagation();
                               setPinMenuId(pinMenuId === pin.id ? null : pin.id);
                             }}
-                            className="flex-shrink-0 w-7 h-7 rounded-full hover:bg-border flex items-center justify-center transition-colors mt-1"
+                            className="flex-shrink-0 w-7 h-7 rounded-full hover:bg-white/80 flex items-center justify-center transition-colors mt-1"
                             aria-label="Pin options"
                           >
                             <svg className="w-4 h-4 text-muted-light" fill="currentColor" viewBox="0 0 24 24">
@@ -827,8 +903,8 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
                           <>
                             <div className="fixed inset-0 z-10" onClick={() => setPinMenuId(null)} />
                             <motion.div
-                              className="absolute right-6 top-12 z-20 bg-white rounded-xl border border-border overflow-hidden"
-                              style={{ boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)', minWidth: 140 }}
+                              className="absolute right-6 top-12 z-20 glass-card overflow-hidden"
+                              style={{ minWidth: 140 }}
                               initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.9 }}
                               animate={{ opacity: 1, scale: 1 }}
                               exit={{ opacity: 0, scale: 0.9 }}
@@ -836,7 +912,7 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
                             >
                               <button
                                 onClick={(e) => { e.stopPropagation(); openPinAction(pin, 'move'); }}
-                                className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-surface-hover transition-colors flex items-center gap-2"
+                                className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-white/60 transition-colors flex items-center gap-2"
                               >
                                 <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
@@ -845,7 +921,8 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); openPinAction(pin, 'copy'); }}
-                                className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-surface-hover transition-colors flex items-center gap-2 border-t border-border"
+                                className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-white/60 transition-colors flex items-center gap-2"
+                                style={{ borderTop: '1px solid rgba(0,0,0,0.04)' }}
                               >
                                 <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
@@ -877,7 +954,8 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
                         </div>
                       )}
                     </motion.li>
-                  ))}
+                    );
+                  })}
                 </motion.ul>
               )}
             </div>

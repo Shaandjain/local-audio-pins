@@ -32,6 +32,15 @@ function formatDistance(meters: number): string {
   return `${(meters / 1000).toFixed(1)}km`;
 }
 
+const CATEGORY_DOT_COLORS: Record<string, string> = {
+  GENERAL: '#888888',
+  FOOD: '#f59e0b',
+  HISTORY: '#a16207',
+  NATURE: '#22c55e',
+  CULTURE: '#a855f7',
+  ARCHITECTURE: '#3b82f6',
+};
+
 export default function Header({ selectionMode = false, onSelectionModeChange, locationName, onLocationSelect, onPinSelect }: HeaderProps) {
   const [showHelp, setShowHelp] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -148,12 +157,13 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
           background: 'rgba(255, 255, 255, 0.85)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          borderBottom: '1px solid rgba(0, 0, 0, 0.06)'
+          borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
         }}
       >
         {/* Logo + location */}
-        <div className="flex items-baseline gap-2">
-          <span className="text-xl font-semibold text-foreground tracking-tight">
+        <div className="flex items-baseline gap-3">
+          <span className="font-heading text-2xl text-foreground">
             Audio Pins
           </span>
           <AnimatePresence mode="wait">
@@ -190,8 +200,8 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
                     onChange={(e) => handleInputChange(e.target.value)}
                     placeholder="Search a place..."
                     autoFocus
-                    className="w-48 sm:w-64 px-3 py-2 rounded-full text-sm border border-border bg-surface text-foreground placeholder:text-muted-light focus:outline-none focus:border-foreground transition-all duration-200"
-                    style={{ boxShadow: 'var(--shadow-glow)' }}
+                    className="w-48 sm:w-64 px-3 py-2 rounded-full text-sm bg-white text-foreground placeholder:text-muted-light focus:outline-none transition-all duration-200"
+                    style={{ border: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 0 0 2px rgba(200,230,54,0.3)' }}
                   />
                   {isSearching && (
                     <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-light" fill="none" viewBox="0 0 24 24">
@@ -213,8 +223,7 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
                 <AnimatePresence>
                   {searchResults.length > 0 && (
                     <motion.div
-                      className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl border border-border overflow-hidden z-20"
-                      style={{ boxShadow: '0 12px 40px rgba(0, 0, 0, 0.12)' }}
+                      className="absolute right-0 top-full mt-2 w-80 glass-card overflow-hidden z-20"
                       initial={{ opacity: 0, scale: 0.97, y: -4 }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.97, y: -4 }}
@@ -224,7 +233,7 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
                         <motion.button
                           key={result.place_id}
                           onClick={() => handleResultClick(result)}
-                          className="w-full text-left px-4 py-3 hover:bg-surface-hover transition-colors duration-150 border-b border-border last:border-b-0"
+                          className="w-full text-left px-4 py-3 hover:bg-white/60 transition-colors duration-150 border-b border-border last:border-b-0"
                           initial={{ opacity: 0, y: 4 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: i * 0.05, duration: 0.15 }}
@@ -261,8 +270,8 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
                     onChange={(e) => handlePinInputChange(e.target.value)}
                     placeholder="Search pins..."
                     autoFocus
-                    className="w-48 sm:w-64 px-3 py-2 rounded-full text-sm border border-border bg-surface text-foreground placeholder:text-muted-light focus:outline-none focus:border-foreground transition-all duration-200"
-                    style={{ boxShadow: 'var(--shadow-glow)' }}
+                    className="w-48 sm:w-64 px-3 py-2 rounded-full text-sm bg-white text-foreground placeholder:text-muted-light focus:outline-none transition-all duration-200"
+                    style={{ border: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 0 0 2px rgba(200,230,54,0.3)' }}
                   />
                   {isPinSearching && (
                     <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-light" fill="none" viewBox="0 0 24 24">
@@ -284,8 +293,7 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
                 <AnimatePresence>
                   {pinResults.length > 0 && (
                     <motion.div
-                      className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl border border-border overflow-hidden z-20"
-                      style={{ boxShadow: '0 12px 40px rgba(0, 0, 0, 0.12)' }}
+                      className="absolute right-0 top-full mt-2 w-80 glass-card overflow-hidden z-20"
                       initial={{ opacity: 0, scale: 0.97, y: -4 }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.97, y: -4 }}
@@ -295,18 +303,22 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
                         <motion.button
                           key={pin.id}
                           onClick={() => handlePinResultClick(pin)}
-                          className="w-full text-left px-4 py-3 hover:bg-surface-hover transition-colors duration-150 border-b border-border last:border-b-0"
+                          className="w-full text-left px-4 py-3 hover:bg-white/60 transition-colors duration-150 border-b border-border last:border-b-0"
                           initial={{ opacity: 0, y: 4 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: i * 0.05, duration: 0.15 }}
                         >
                           <div className="flex items-center gap-2">
+                            <div
+                              className="w-2 h-2 rounded-full flex-shrink-0"
+                              style={{ background: CATEGORY_DOT_COLORS[pin.category?.toUpperCase()] || '#888' }}
+                            />
                             <p className="text-sm font-medium text-foreground truncate flex-1">{pin.title}</p>
-                            <span className="flex-shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-surface-hover text-muted border border-border">
+                            <span className="flex-shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-surface-hover text-muted">
                               {categoryLabel(pin.category)}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 mt-0.5">
+                          <div className="flex items-center gap-2 mt-0.5 ml-4">
                             {pin.description && (
                               <p className="text-xs text-muted-light truncate flex-1">{pin.description}</p>
                             )}
@@ -322,8 +334,7 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
 
                 {pinQuery.trim() && !isPinSearching && pinResults.length === 0 && (
                   <div
-                    className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl border border-border overflow-hidden z-20 animate-scale-in px-4 py-3"
-                    style={{ boxShadow: '0 12px 40px rgba(0, 0, 0, 0.12)' }}
+                    className="absolute right-0 top-full mt-2 w-80 glass-card overflow-hidden z-20 animate-scale-in px-4 py-3"
                   >
                     <p className="text-sm text-muted">No pins found</p>
                   </div>
@@ -332,7 +343,8 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
             ) : (
               <button
                 onClick={() => setShowPinSearch(true)}
-                className="flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium bg-surface-hover text-foreground hover:bg-border transition-all duration-200"
+                className="flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium bg-white/80 text-foreground hover:bg-white transition-all duration-200"
+                style={{ border: '1px solid rgba(0,0,0,0.06)' }}
                 aria-label="Search pins"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -349,9 +361,13 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
               onClick={() => onSelectionModeChange(!selectionMode)}
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
                 selectionMode
-                  ? 'bg-foreground text-white shadow-md'
-                  : 'bg-surface-hover text-foreground hover:bg-border'
+                  ? 'text-foreground shadow-md'
+                  : 'bg-white/80 text-foreground hover:bg-white'
               }`}
+              style={{
+                background: selectionMode ? '#c8e636' : undefined,
+                border: selectionMode ? 'none' : '1px solid rgba(0,0,0,0.06)',
+              }}
               aria-label={selectionMode ? 'Exit selection mode' : 'Enter selection mode'}
               aria-pressed={selectionMode}
             >
@@ -402,19 +418,17 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
                   className="fixed inset-0 z-10"
                   onClick={() => setShowHelp(false)}
                 />
-                <div className="absolute right-0 top-full mt-3 w-80 p-5 bg-white rounded-2xl border border-border z-20 animate-scale-in"
-                     style={{ boxShadow: '0 12px 40px rgba(0, 0, 0, 0.12)' }}>
-                  <h3 className="font-semibold text-foreground mb-2 text-base">
-                    How it works
-                  </h3>
-                  <p className="text-sm text-muted leading-relaxed">
+                <div className="absolute right-0 top-full mt-3 w-80 p-5 glass-card z-20 animate-scale-in">
+                  <span className="section-label">How it works</span>
+                  <p className="text-sm text-muted leading-relaxed mt-3">
                     Click anywhere on the map to drop a pin and record a voice note.
                     Use <span className="font-medium text-foreground">Select Area</span> to
                     draw a region and generate a walking tour from your pins.
                   </p>
                   <button
                     onClick={() => setShowHelp(false)}
-                    className="mt-4 text-sm bg-foreground text-white px-4 py-2 rounded-full font-medium hover:bg-accent-hover transition-colors"
+                    className="mt-4 text-sm px-4 py-2 rounded-full font-semibold transition-colors"
+                    style={{ background: '#c8e636', color: '#1a1a1a' }}
                   >
                     Got it
                   </button>
@@ -426,7 +440,8 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
           {/* Explore */}
           <Link
             href="/explore"
-            className="group relative flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-surface-hover text-foreground hover:bg-border transition-all duration-200"
+            className="group relative flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-white/80 text-foreground hover:bg-white transition-all duration-200"
+            style={{ border: '1px solid rgba(0,0,0,0.06)' }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
@@ -437,7 +452,8 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
           {/* My Collections */}
           <Link
             href="/collections"
-            className="group relative flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-surface-hover text-foreground hover:bg-border transition-all duration-200"
+            className="group relative flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-white/80 text-foreground hover:bg-white transition-all duration-200"
+            style={{ border: '1px solid rgba(0,0,0,0.06)' }}
           >
             <svg
               className="w-4 h-4"

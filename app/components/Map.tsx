@@ -12,6 +12,7 @@ import SelectionPanel from './SelectionPanel';
 import TourPanel from './TourPanel';
 import Toast from './Toast';
 import CategoryFilter from './CategoryFilter';
+import WeatherWidget from './WeatherWidget';
 import { BoundingBox, getPinsInBounds, generateWalkingTour } from '../utils/tourUtils';
 import { formatDuration } from '../utils/pinUtils';
 import {
@@ -34,6 +35,26 @@ interface DragState {
   startLng: number;
   startLat: number;
 }
+
+// Category color mapping for pins
+const CATEGORY_COLORS: Record<string, { bg: string; border: string; icon: string }> = {
+  GENERAL: { bg: '#ffffff', border: '#888888', icon: '#888888' },
+  FOOD: { bg: '#fff8eb', border: '#f59e0b', icon: '#f59e0b' },
+  HISTORY: { bg: '#fef3c7', border: '#a16207', icon: '#a16207' },
+  NATURE: { bg: '#f0fdf4', border: '#22c55e', icon: '#22c55e' },
+  CULTURE: { bg: '#faf5ff', border: '#a855f7', icon: '#a855f7' },
+  ARCHITECTURE: { bg: '#eff6ff', border: '#3b82f6', icon: '#3b82f6' },
+};
+
+// SVG icons for each category
+const CATEGORY_ICONS: Record<string, string> = {
+  GENERAL: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`,
+  FOOD: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>`,
+  HISTORY: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>`,
+  NATURE: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg>`,
+  CULTURE: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><path d="M17.5 10.5c-1.5-1-3.5-1-5 0"/><path d="M3 19.5C3 10 10 3 19 3"/><path d="M3 13c3-5 8-8 14-8"/></svg>`,
+  ARCHITECTURE: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>`,
+};
 
 function formatRelativeTime(dateString: string): string {
   const date = new Date(dateString);
@@ -91,27 +112,46 @@ export default function MapView() {
     });
   }, []);
 
-  const createMarkerElement = useCallback(() => {
+  const createMarkerElement = useCallback((category?: string) => {
+    const cat = (category || 'GENERAL').toUpperCase();
+    const colors = CATEGORY_COLORS[cat] || CATEGORY_COLORS.GENERAL;
+    const icon = CATEGORY_ICONS[cat] || CATEGORY_ICONS.GENERAL;
+
     const el = document.createElement('div');
     el.className = 'custom-marker';
     el.innerHTML = `
-      <div style="
-        width: 36px;
-        height: 36px;
-        background: #171717;
-        border-radius: 50%;
-        border: 3px solid white;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
-      ">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-          <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-        </svg>
+      <div style="display: flex; flex-direction: column; align-items: center;">
+        <div style="
+          width: 38px;
+          height: 38px;
+          background: ${colors.bg};
+          border-radius: 12px;
+          border: 2.5px solid ${colors.border};
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: transform 0.15s ease, box-shadow 0.15s ease;
+          color: ${colors.icon};
+        ">
+          ${icon}
+        </div>
+        <div style="
+          width: 2px;
+          height: 10px;
+          background: ${colors.border};
+          border-radius: 1px;
+          margin-top: -1px;
+        "></div>
+        <div style="
+          width: 6px;
+          height: 6px;
+          background: ${colors.border};
+          border-radius: 50%;
+          margin-top: -1px;
+          opacity: 0.5;
+        "></div>
       </div>
     `;
     return el;
@@ -172,6 +212,9 @@ export default function MapView() {
   const addMarkerForPin = useCallback((pin: Pin) => {
     if (!mapInstance.current) return;
 
+    const cat = (pin.category || 'GENERAL').toUpperCase();
+    const catColors = CATEGORY_COLORS[cat] || CATEGORY_COLORS.GENERAL;
+
     const popupContent = `
       <div style="padding: 20px; min-width: 260px; max-width: 300px;">
         ${pin.photoFile ? `
@@ -183,11 +226,17 @@ export default function MapView() {
             />
           </a>
         ` : ''}
-        <h3 style="font-weight: 600; color: #0A0A0A; font-size: 17px; margin-bottom: 6px; letter-spacing: -0.02em;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+          <div style="width: 8px; height: 8px; border-radius: 50%; background: ${catColors.border}; flex-shrink: 0;"></div>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #999;">
+            ${(pin.category || 'General')}
+          </span>
+        </div>
+        <h3 style="font-weight: 600; color: #1a1a1a; font-size: 17px; margin-bottom: 6px; letter-spacing: -0.02em;">
           ${pin.title || 'Untitled Pin'}
         </h3>
         ${pin.description ? `
-          <p style="font-size: 14px; color: #525252; margin-bottom: 14px; line-height: 1.6;">
+          <p style="font-size: 14px; color: #666; margin-bottom: 14px; line-height: 1.6;">
             ${pin.description}
           </p>
         ` : ''}
@@ -197,25 +246,25 @@ export default function MapView() {
           style="width: 100%; height: 40px; margin-bottom: 12px;"
           preload="metadata"
         ></audio>
-        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #A3A3A3;">
+        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #999;">
           <span>${formatRelativeTime(pin.createdAt)}</span>
           <div style="display: flex; align-items: center; gap: 10px;">
             <span data-duration style="font-family: 'JetBrains Mono', monospace; font-size: 11px;">${formatDuration(0)}</span>
             <button
               type="button"
               data-share
-              style="border: 1px solid #E5E5E5; background: #FFFFFF; padding: 4px 8px; border-radius: 999px; font-size: 11px; color: #0A0A0A; cursor: pointer;"
+              style="border: 1px solid rgba(0,0,0,0.08); background: #ffffff; padding: 4px 10px; border-radius: 999px; font-size: 11px; color: #1a1a1a; cursor: pointer; font-weight: 500;"
             >Share</button>
           </div>
         </div>
-        <div style="margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #A3A3A3;">
+        <div style="margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #999;">
           ${pin.lat.toFixed(4)}, ${pin.lng.toFixed(4)}
         </div>
       </div>
     `;
 
     const popup = new maplibregl.Popup({
-      offset: 28,
+      offset: 38,
       closeButton: true,
       closeOnClick: false,
       maxWidth: '340px',
@@ -223,7 +272,7 @@ export default function MapView() {
 
     attachPopupHandlers(popup, pin);
 
-    const markerEl = createMarkerElement();
+    const markerEl = createMarkerElement(pin.category);
 
     // Fix 1: Close other popups when this marker is clicked
     markerEl.addEventListener('click', () => {
@@ -339,6 +388,58 @@ export default function MapView() {
     });
   }, []);
 
+  // Draw dashed tour trail on map
+  const drawTourTrail = useCallback((tourStops: Pin[]) => {
+    const map = mapInstance.current;
+    if (!map || tourStops.length < 2) return;
+
+    // Remove existing trail
+    if (map.getLayer('tour-route-line')) {
+      map.removeLayer('tour-route-line');
+    }
+    if (map.getSource('tour-route')) {
+      map.removeSource('tour-route');
+    }
+
+    const coordinates = tourStops.map((pin) => [pin.lng, pin.lat]);
+
+    map.addSource('tour-route', {
+      type: 'geojson',
+      data: {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates,
+        },
+      },
+    });
+
+    map.addLayer({
+      id: 'tour-route-line',
+      type: 'line',
+      source: 'tour-route',
+      paint: {
+        'line-color': '#ffffff',
+        'line-width': 3,
+        'line-dasharray': [2, 2],
+      },
+    });
+  }, []);
+
+  // Remove tour trail from map
+  const removeTourTrail = useCallback(() => {
+    const map = mapInstance.current;
+    if (!map) return;
+
+    if (map.getLayer('tour-route-line')) {
+      map.removeLayer('tour-route-line');
+    }
+    if (map.getSource('tour-route')) {
+      map.removeSource('tour-route');
+    }
+  }, []);
+
   // Initialize map with geolocation
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -361,9 +462,22 @@ export default function MapView() {
       style: 'https://tiles.openfreemap.org/styles/liberty',
       center: [initialCenter.lng, initialCenter.lat],
       zoom: initialZoom,
+      pitch: 50,
+      bearing: -10,
     });
 
     mapInstance.current = map;
+
+    // Enable 3D terrain after map loads
+    map.on('load', () => {
+      // Add terrain source for 3D elevation
+      map.addSource('terrain-dem', {
+        type: 'raster-dem',
+        url: 'https://demotiles.maplibre.org/terrain-tiles/tiles.json',
+        tileSize: 256,
+      });
+      map.setTerrain({ source: 'terrain-dem', exaggeration: 1.5 });
+    });
 
     // Request fresh geolocation
     requestGeolocation()
@@ -487,6 +601,7 @@ export default function MapView() {
     if (!enabled) {
       clearSelection();
       setShowTourPanel(false);
+      removeTourTrail();
     }
 
     if (mapInstance.current) {
@@ -579,12 +694,16 @@ export default function MapView() {
       setTourPins(orderedPins);
       setShowTourPanel(true);
       setIsGenerating(false);
+
+      // Draw the dashed trail connecting tour stops
+      drawTourTrail(orderedPins);
     }, 500);
   };
 
   const handleCloseTourPanel = () => {
     setShowTourPanel(false);
     clearSelection();
+    removeTourTrail();
     handleSelectionModeChange(false); // Fix 2: Exit selection mode after closing tour
   };
 
@@ -668,9 +787,10 @@ export default function MapView() {
         {/* Category filter chips */}
         {!selectionMode && (
           <div
-            className="absolute top-16 left-0 right-0 z-10"
+            className="absolute top-20 left-0 right-0 z-10"
             style={{
-              background: 'linear-gradient(to bottom, rgba(255,255,255,0.7) 0%, transparent 100%)',
+              background: 'linear-gradient(to bottom, rgba(245,243,239,0.8) 0%, transparent 100%)',
+              paddingBottom: '12px',
             }}
           >
             <CategoryFilter selected={selectedCategories} onChange={setSelectedCategories} />
@@ -678,6 +798,13 @@ export default function MapView() {
         )}
 
         <div ref={mapContainer} className="w-full h-full" />
+
+        {/* Weather widget - bottom left */}
+        {!selectionMode && !showTourPanel && (
+          <div className="absolute bottom-6 left-4 z-10">
+            <WeatherWidget locationName={locationName} />
+          </div>
+        )}
 
         {/* Selection overlay */}
         {selectionMode && !showTourPanel && (
@@ -708,8 +835,8 @@ export default function MapView() {
         {selectionMode && !showTourPanel && (
           <button
             onClick={exitSelectionMode}
-            className="absolute top-20 right-4 z-30 bg-white rounded-full px-4 py-2.5 flex items-center gap-2 hover:bg-surface-hover transition-all duration-200 border border-border"
-            style={{ boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)' }}
+            className="absolute top-24 right-4 z-30 glass-card px-4 py-2.5 flex items-center gap-2 hover:bg-white/90 transition-all duration-200"
+            style={{ borderRadius: '9999px' }}
           >
             <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
@@ -721,8 +848,7 @@ export default function MapView() {
         {/* Selection mode indicator */}
         {selectionMode && !boundingBox && !isDragging && !showTourPanel && (
           <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 animate-slide-up">
-            <div className="bg-white rounded-2xl px-5 py-4 border border-border"
-                 style={{ boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)' }}>
+            <div className="glass-card px-5 py-4">
               <p className="text-sm font-medium text-foreground">Draw a selection</p>
               <p className="text-xs text-muted mt-1">Click and drag to select an area</p>
             </div>

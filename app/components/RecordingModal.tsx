@@ -71,6 +71,15 @@ interface SpeechRecognitionConstructor {
 
 const CATEGORY_OPTIONS = ['General', 'Food', 'History', 'Nature', 'Culture', 'Architecture'];
 
+const CATEGORY_COLORS: Record<string, string> = {
+  General: '#888888',
+  Food: '#f59e0b',
+  History: '#a16207',
+  Nature: '#22c55e',
+  Culture: '#a855f7',
+  Architecture: '#3b82f6',
+};
+
 export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -122,9 +131,9 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
     const width = canvas.offsetWidth;
     const height = canvas.offsetHeight;
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = '#F5F5F5';
+    ctx.fillStyle = '#f5f3ef';
     ctx.fillRect(0, 0, width, height);
-    ctx.strokeStyle = '#D4D4D4';
+    ctx.strokeStyle = 'rgba(0,0,0,0.1)';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(0, height / 2);
@@ -143,12 +152,12 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
     const height = canvas.offsetHeight;
 
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = '#F5F5F5';
+    ctx.fillStyle = '#f5f3ef';
     ctx.fillRect(0, 0, width, height);
 
     analyser.getByteTimeDomainData(dataArray);
     ctx.lineWidth = 2;
-    ctx.strokeStyle = '#0A0A0A';
+    ctx.strokeStyle = '#c8e636';
     ctx.beginPath();
 
     const sliceWidth = width / dataArray.length;
@@ -449,7 +458,7 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
   return (
     <motion.div
       className="fixed inset-0 z-50 flex items-end justify-center"
-      style={{ background: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(8px)' }}
+      style={{ background: 'rgba(0, 0, 0, 0.3)', backdropFilter: 'blur(8px)' }}
       onClick={onClose}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -457,8 +466,8 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
       transition={{ duration: 0.15 }}
     >
       <motion.div
-        className="w-full max-w-lg bg-white rounded-t-2xl border-t border-x border-border"
-        style={{ boxShadow: '0 -8px 40px rgba(0, 0, 0, 0.15)' }}
+        className="w-full max-w-lg bg-white rounded-t-3xl"
+        style={{ boxShadow: '0 -8px 40px rgba(0, 0, 0, 0.1)', borderTop: '1px solid rgba(0,0,0,0.06)' }}
         onClick={(e) => e.stopPropagation()}
         initial={{ y: '100%', scale: 0.95 }}
         animate={{ y: 0, scale: 1 }}
@@ -466,10 +475,11 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
         transition={{ type: 'spring', stiffness: 300, damping: 28 }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-border">
+        <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
           <div>
-            <h2 className="text-xl font-semibold text-foreground tracking-tight">New Audio Pin</h2>
-            <p className="text-sm text-muted-light mt-1" style={{ fontFamily: 'var(--font-mono)' }}>
+            <span className="section-label">New Pin</span>
+            <h2 className="font-heading text-xl text-foreground mt-1">Audio Pin</h2>
+            <p className="text-sm text-muted-light mt-0.5" style={{ fontFamily: 'var(--font-mono)' }}>
               {lat.toFixed(5)}, {lng.toFixed(5)}
             </p>
           </div>
@@ -489,7 +499,7 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
           {/* Title */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Title <span className="text-muted">*</span>
+              Title <span className="text-muted-light">*</span>
             </label>
             <input
               type="text"
@@ -523,22 +533,31 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
             <div className="flex flex-wrap gap-2">
               {CATEGORY_OPTIONS.map((option) => {
                 const isSelected = category === option;
+                const color = CATEGORY_COLORS[option];
                 return (
                   <button
                     key={option}
                     type="button"
                     onClick={() => setCategory(option)}
-                    className={`relative px-3 py-1.5 rounded-full text-xs font-medium border transition-colors duration-200 ${
+                    className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-200 ${
                       isSelected
-                        ? 'text-white border-foreground'
-                        : 'bg-surface-hover text-foreground border-border hover:border-border-strong'
+                        ? 'text-white'
+                        : 'bg-surface-hover text-foreground hover:bg-border-strong'
                     }`}
+                    style={{ border: isSelected ? 'none' : '1px solid rgba(0,0,0,0.06)' }}
                   >
                     {isSelected && (
                       <motion.div
                         layoutId="modal-category-pill"
-                        className="absolute inset-0 bg-foreground rounded-full"
+                        className="absolute inset-0 rounded-full"
+                        style={{ background: color }}
                         transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                      />
+                    )}
+                    {!isSelected && (
+                      <span
+                        className="w-2 h-2 rounded-full flex-shrink-0 relative z-10"
+                        style={{ background: color }}
                       />
                     )}
                     <span className="relative z-10">{option}</span>
@@ -555,7 +574,8 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
             </label>
             <div className="space-y-3">
               {!photoUrl ? (
-                <label className="flex items-center justify-center gap-2 px-5 py-3 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-border-strong transition-all duration-200">
+                <label className="flex items-center justify-center gap-2 px-5 py-3 border-2 border-dashed rounded-xl cursor-pointer hover:border-accent transition-all duration-200"
+                       style={{ borderColor: 'rgba(0,0,0,0.1)' }}>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -574,7 +594,8 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
                     src={photoUrl!}
                     alt="Preview"
                     fill
-                    className="object-cover rounded-xl border border-border"
+                    className="object-cover rounded-xl"
+                    style={{ border: '1px solid rgba(0,0,0,0.06)' }}
                   />
                   <button
                     onClick={handleRemovePhoto}
@@ -593,7 +614,7 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
           {/* Audio Recording */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Voice Note <span className="text-muted">*</span>
+              Voice Note <span className="text-muted-light">*</span>
             </label>
 
             <div className="space-y-3">
@@ -602,17 +623,17 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
                 {!isRecording ? (
                   <button
                     onClick={startRecording}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-foreground text-white rounded-full
-                             font-medium hover:bg-accent-hover transition-all duration-200"
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-full font-medium transition-all duration-200"
+                    style={{ background: '#c8e636', color: '#1a1a1a' }}
                   >
-                    <div className="w-2.5 h-2.5 bg-white rounded-full" />
+                    <div className="w-2.5 h-2.5 bg-red-500 rounded-full" />
                     Record
                   </button>
                 ) : (
                   <button
                     onClick={stopRecording}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-full font-medium transition-all duration-200 recording-pulse"
-                    style={{ background: '#404040', color: 'white' }}
+                    style={{ background: '#ef4444', color: 'white' }}
                   >
                     <div className="w-2.5 h-2.5 bg-white rounded-sm" />
                     Stop
@@ -622,8 +643,8 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
                 {isRecording && (
                   <div className="flex items-center gap-2 text-sm text-muted">
                     <div className="relative">
-                      <div className="w-2 h-2 rounded-full bg-foreground" />
-                      <div className="absolute inset-0 w-2 h-2 rounded-full animate-ping bg-foreground" />
+                      <div className="w-2 h-2 rounded-full bg-red-500" />
+                      <div className="absolute inset-0 w-2 h-2 rounded-full animate-ping bg-red-500" />
                     </div>
                     <span className="font-medium">Recording{isTranscribing ? ' & transcribing' : ''}...</span>
                   </div>
@@ -632,10 +653,12 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
 
               {/* Waveform */}
               <div
-                className={`w-full h-20 rounded-xl border overflow-hidden transition-all duration-200 ${
-                  isRecording ? 'border-foreground' : 'border-border'
-                } bg-surface-hover`}
-                style={isRecording ? { boxShadow: '0 0 16px rgba(10, 10, 10, 0.12)' } : undefined}
+                className={`w-full h-20 rounded-xl overflow-hidden transition-all duration-200`}
+                style={{
+                  border: isRecording ? '2px solid #c8e636' : '1px solid rgba(0,0,0,0.06)',
+                  background: '#f5f3ef',
+                  boxShadow: isRecording ? '0 0 16px rgba(200, 230, 54, 0.2)' : undefined,
+                }}
               >
                 <canvas ref={waveformCanvasRef} className="w-full h-full" aria-hidden="true" />
               </div>
@@ -661,12 +684,14 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
                     Transcript
                   </label>
                   {isTranscribing && (
-                    <span className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide rounded-full bg-foreground text-white">
+                    <span className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide rounded-full"
+                          style={{ background: '#c8e636', color: '#1a1a1a' }}>
                       Live
                     </span>
                   )}
                 </div>
-                <div className="p-4 bg-surface-hover rounded-xl text-sm text-muted min-h-[48px] leading-relaxed">
+                <div className="p-4 bg-surface-hover rounded-xl text-sm text-muted min-h-[48px] leading-relaxed"
+                     style={{ border: '1px solid rgba(0,0,0,0.04)' }}>
                   {transcript || 'Listening...'}
                 </div>
               </div>
@@ -691,7 +716,7 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-surface-hover/30">
+        <div className="flex items-center justify-between px-6 py-4 bg-surface-hover/30" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
           <button
             onClick={onClose}
             className="text-sm text-muted hover:text-foreground font-medium transition-all duration-200"
@@ -701,7 +726,12 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
           <motion.button
             onClick={handleSave}
             disabled={!canSave}
-            className={`btn-primary rounded-full ${!canSave ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`btn rounded-full font-semibold ${!canSave ? 'opacity-50 cursor-not-allowed' : ''}`}
+            style={{
+              background: canSave ? '#c8e636' : '#e5e5e5',
+              color: '#1a1a1a',
+              boxShadow: canSave ? '0 2px 8px rgba(200,230,54,0.3)' : 'none',
+            }}
             whileTap={canSave ? { scale: 0.95 } : undefined}
             transition={{ type: 'spring', stiffness: 400, damping: 20 }}
           >

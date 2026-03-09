@@ -44,13 +44,13 @@ export default function SelectionPanel({
       animate={{ y: 0, opacity: 1 }}
       transition={{ type: 'spring', stiffness: 300, damping: 25 }}
     >
-      <div className="bg-white rounded-2xl px-5 py-3.5 border border-border"
-           style={{ boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)' }}>
+      <div className="glass-card px-5 py-3.5">
         <div className="flex items-center gap-4">
           {/* Pin Count */}
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-foreground rounded-full flex items-center justify-center">
-              <span className="text-xs font-bold text-white">{animatedCount}</span>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center"
+                 style={{ background: '#c8e636' }}>
+              <span className="text-xs font-bold text-foreground">{animatedCount}</span>
             </div>
             <span className="text-sm font-medium text-foreground">
               {pinCount === 1 ? 'pin' : 'pins'} selected
@@ -65,9 +65,14 @@ export default function SelectionPanel({
             <motion.button
               onClick={onGenerateTour}
               disabled={pinCount === 0 || isGenerating}
-              className={`btn-primary text-sm px-4 py-2 rounded-full ${
+              className={`text-sm px-4 py-2 rounded-full font-semibold transition-all duration-200 ${
                 pinCount === 0 || isGenerating ? 'opacity-50 cursor-not-allowed' : ''
               }`}
+              style={{
+                background: '#c8e636',
+                color: '#1a1a1a',
+                boxShadow: hasPin && !isGenerating ? '0 2px 8px rgba(200,230,54,0.3)' : 'none',
+              }}
               animate={hasPin && !isGenerating ? { scale: [1, 1.02, 1] } : undefined}
               transition={hasPin && !isGenerating ? { duration: 2, repeat: Infinity, ease: 'easeInOut' } : undefined}
             >
@@ -86,7 +91,7 @@ export default function SelectionPanel({
 
             <button
               onClick={onClear}
-              className="w-9 h-9 rounded-full flex items-center justify-center text-muted hover:text-foreground hover:bg-surface-hover transition-all duration-200"
+              className="w-9 h-9 rounded-full flex items-center justify-center text-muted hover:text-foreground hover:bg-white/60 transition-all duration-200"
               aria-label="Redraw selection"
               title="Redraw"
             >
@@ -98,7 +103,7 @@ export default function SelectionPanel({
 
             <button
               onClick={onExit}
-              className="w-9 h-9 rounded-full flex items-center justify-center text-muted hover:text-foreground hover:bg-surface-hover transition-all duration-200"
+              className="w-9 h-9 rounded-full flex items-center justify-center text-muted hover:text-foreground hover:bg-white/60 transition-all duration-200"
               aria-label="Exit selection mode"
               title="Exit"
             >

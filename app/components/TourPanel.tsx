@@ -34,6 +34,7 @@ export default function TourPanel({ pins, onClose, onPinClick }: TourPanelProps)
   const totalDistance = estimateTourDistance(pins);
   const animatedStops = useCountUp(pins.length);
   const animatedDistance = useCountUp(Math.round(totalDistance));
+  const estimatedMinutes = Math.round(totalDistance / 80); // ~80m/min walking
 
   const handlePlayAudio = (pinId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -49,29 +50,55 @@ export default function TourPanel({ pins, onClose, onPinClick }: TourPanelProps)
 
   return (
     <motion.div
-      className="w-[400px] h-full bg-white border-l border-border flex flex-col"
-      style={{ flexShrink: 0 }}
+      className="w-[400px] h-full flex flex-col"
+      style={{
+        flexShrink: 0,
+        background: 'rgba(255, 255, 255, 0.92)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderLeft: '1px solid rgba(0,0,0,0.06)',
+      }}
       initial={{ x: 300, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ type: 'spring', stiffness: 300, damping: 28 }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-5 border-b border-border flex-shrink-0">
-        <div>
-          <h2 className="text-xl font-semibold text-foreground tracking-tight">Your Walking Tour</h2>
-          <p className="text-sm text-muted-light mt-1">
-            {animatedStops} {pins.length === 1 ? 'stop' : 'stops'} · {formatDistance(animatedDistance)}
-          </p>
+      <div className="px-6 py-5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+        <div className="flex items-start justify-between">
+          <div>
+            <span className="section-label">Trail Info</span>
+            <h2 className="font-heading text-2xl text-foreground mt-1">Walking Tour</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-9 h-9 -mr-1 text-muted hover:text-foreground rounded-full hover:bg-surface-hover flex items-center justify-center transition-all duration-200"
+            aria-label="Close tour panel"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
-        <button
-          onClick={onClose}
-          className="w-9 h-9 -mr-1 text-muted hover:text-foreground rounded-full hover:bg-surface-hover flex items-center justify-center transition-all duration-200"
-          aria-label="Close tour panel"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+
+        {/* Stats row */}
+        <div className="flex items-center gap-6 mt-4">
+          <div>
+            <span className="font-heading text-3xl text-foreground">{animatedStops}</span>
+            <p className="text-[10px] font-mono uppercase tracking-wider text-muted-light mt-0.5">
+              {pins.length === 1 ? 'Stop' : 'Stops'}
+            </p>
+          </div>
+          <div className="w-px h-10 bg-border" />
+          <div>
+            <span className="font-heading text-3xl text-foreground">{formatDistance(animatedDistance)}</span>
+            <p className="text-[10px] font-mono uppercase tracking-wider text-muted-light mt-0.5">Distance</p>
+          </div>
+          <div className="w-px h-10 bg-border" />
+          <div>
+            <span className="font-heading text-3xl text-foreground">{estimatedMinutes}</span>
+            <p className="text-[10px] font-mono uppercase tracking-wider text-muted-light mt-0.5">Min</p>
+          </div>
+        </div>
       </div>
 
       {/* Tour Stops */}
@@ -97,21 +124,25 @@ export default function TourPanel({ pins, onClose, onPinClick }: TourPanelProps)
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.06, type: 'spring', stiffness: 300, damping: 25 }}
               >
-                {/* Connection line */}
+                {/* Connection line - dashed */}
                 {index < pins.length - 1 && (
                   <div
-                    className="absolute left-[37px] top-14 bottom-0 w-px bg-border"
-                    style={{ height: 'calc(100% - 56px)' }}
+                    className="absolute left-[37px] top-14 bottom-0 w-px"
+                    style={{
+                      height: 'calc(100% - 56px)',
+                      backgroundImage: 'repeating-linear-gradient(to bottom, rgba(0,0,0,0.12) 0px, rgba(0,0,0,0.12) 4px, transparent 4px, transparent 8px)',
+                    }}
                   />
                 )}
 
                 <button
                   onClick={() => onPinClick?.(pin)}
-                  className="w-full px-6 py-4 text-left hover:bg-surface-hover transition-all duration-200 relative"
+                  className="w-full px-6 py-4 text-left hover:bg-white/60 transition-all duration-200 relative"
                 >
                   <div className="flex items-start gap-4">
                     {/* Stop Number */}
-                    <div className="flex-shrink-0 w-7 h-7 bg-foreground text-white rounded-full flex items-center justify-center font-semibold text-xs z-10">
+                    <div className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center font-semibold text-xs z-10"
+                         style={{ background: '#c8e636', color: '#1a1a1a' }}>
                       {index + 1}
                     </div>
 
@@ -132,7 +163,8 @@ export default function TourPanel({ pins, onClose, onPinClick }: TourPanelProps)
                           {pin.title || 'Untitled Pin'}
                         </h3>
                         {isRecentPin(pin.createdAt) && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-border bg-surface-hover text-[10px] font-medium text-foreground">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium"
+                                style={{ background: '#c8e636', color: '#1a1a1a' }}>
                             New
                           </span>
                         )}
@@ -147,7 +179,7 @@ export default function TourPanel({ pins, onClose, onPinClick }: TourPanelProps)
                       )}
                       {pin.transcript && (
                         <p className="text-xs text-muted-light mt-2 line-clamp-2 italic">
-                          "{pin.transcript}"
+                          &ldquo;{pin.transcript}&rdquo;
                         </p>
                       )}
                     </div>
@@ -155,18 +187,22 @@ export default function TourPanel({ pins, onClose, onPinClick }: TourPanelProps)
                     {/* Play Button */}
                     <motion.button
                       onClick={(e) => handlePlayAudio(pin.id, e)}
-                      className="absolute right-6 top-4 flex-shrink-0 w-10 h-10 bg-surface-hover hover:bg-border rounded-full
+                      className="absolute right-6 top-4 flex-shrink-0 w-10 h-10 rounded-full
                                flex items-center justify-center transition-all duration-200"
+                      style={{
+                        background: playingPinId === pin.id ? '#c8e636' : 'rgba(0,0,0,0.04)',
+                        color: '#1a1a1a',
+                      }}
                       aria-label={playingPinId === pin.id ? 'Pause' : 'Play audio'}
                       animate={playingPinId === pin.id ? { scale: [1, 1.08, 1] } : { scale: 1 }}
                       transition={playingPinId === pin.id ? { duration: 1.2, repeat: Infinity, ease: 'easeInOut' } : undefined}
                     >
                       {playingPinId === pin.id ? (
-                        <svg className="w-4 h-4 text-foreground" fill="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
                         </svg>
                       ) : (
-                        <svg className="w-4 h-4 text-foreground ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M8 5v14l11-7z" />
                         </svg>
                       )}
@@ -200,7 +236,7 @@ export default function TourPanel({ pins, onClose, onPinClick }: TourPanelProps)
       </div>
 
       {/* Footer */}
-      <div className="px-6 py-4 border-t border-border bg-surface-hover/30 flex-shrink-0">
+      <div className="px-6 py-4 flex-shrink-0" style={{ borderTop: '1px solid rgba(0,0,0,0.06)', background: 'rgba(245,243,239,0.5)' }}>
         <div className="flex items-center gap-2.5 text-sm text-muted">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round"
