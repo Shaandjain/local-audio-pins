@@ -53,6 +53,7 @@ export async function GET(
         return NextResponse.json({
           id: collection.id,
           name: collection.name,
+          isPublic: collection.isPublic,
           center: { lat: collection.centerLat, lng: collection.centerLng },
           pins: collection.pins.map((p) => ({
             id: p.id,
@@ -84,5 +85,96 @@ export async function GET(
   } catch (error) {
     console.error('Error reading collection:', error);
     return NextResponse.json({ error: 'Failed to read collection' }, { status: 500 });
+  }
+}
+
+// PATCH /api/collections/[id] - Update collection name/description
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { name, description, isPublic } = body;
+
+    const collection = await prisma.collection.findFirst({
+      where: { id, userId: user.id },
+    });
+
+    if (!collection) {
+      return NextResponse.json({ error: 'Collection not found' }, { status: 404 });
+    }
+
+    const updated = await prisma.collection.update({
+      where: { id },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(description !== undefined && { description }),
+        ...(isPublic !== undefined && { isPublic }),
+      },
+    });
+
+    return NextResponse.json({
+      id: updated.id,
+      name: updated.name,
+      description: updated.description,
+      isPublic: updated.isPublic,
+      center: { lat: updated.centerLat, lng: updated.centerLng },
+      createdAt: updated.createdAt,
+      updatedAt: updated.updatedAt,
+    });
+  } catch (error) {
+    console.error('Error updating collection:', error);
+    return NextResponse.json({ error: 'Failed to update collection' }, { status: 500 });
+  }
+}
+
+// DELETE /api/collections/[id] - Delete a collection and all its pins
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const collection = await prisma.collection.findFirst({
+      where: { id, userId: user.id },
+    });
+
+    if (!collection) {
+      return NextResponse.json({ error: 'Collection not found' }, { status: 404 });
+    }
+
+    // Check if this is the user's only collection (default collection protection)
+    const collectionCount = await prisma.collection.count({
+      where: { userId: user.id },
+    });
+
+    if (collectionCount <= 1) {
+      return NextResponse.json(
+        { error: 'Cannot delete your only collection' },
+        { status: 400 }
+      );
+    }
+
+    // Cascade delete handles pins, tours, etc.
+    await prisma.collection.delete({ where: { id } });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting collection:', error);
+    return NextResponse.json({ error: 'Failed to delete collection' }, { status: 500 });
   }
 }

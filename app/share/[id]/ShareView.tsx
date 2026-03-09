@@ -3,9 +3,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import Link from 'next/link';
-import Image from 'next/image';
-import { formatDuration, isRecentPin } from '../../utils/pinUtils';
 
 interface Pin {
   id: string;
@@ -13,7 +10,6 @@ interface Pin {
   lng: number;
   title: string;
   description: string;
-  transcript: string;
   audioFile: string;
   photoFile?: string;
   thumbnailFile?: string;
@@ -21,16 +17,18 @@ interface Pin {
   createdAt: string;
 }
 
-interface Collection {
+interface ShareCollection {
   id: string;
   name: string;
-  isPublic?: boolean;
+  description: string | null;
   center: { lat: number; lng: number };
+  pinCount: number;
+  creator: {
+    id: string;
+    name: string | null;
+    image: string | null;
+  } | null;
   pins: Pin[];
-}
-
-interface CollectionViewProps {
-  collectionId: string;
 }
 
 function formatRelativeTime(dateString: string): string {
@@ -48,44 +46,13 @@ function formatRelativeTime(dateString: string): string {
   return date.toLocaleDateString();
 }
 
-export default function CollectionView({ collectionId }: CollectionViewProps) {
+export default function ShareView({ collection }: { collection: ShareCollection }) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<globalThis.Map<string, maplibregl.Marker>>(new globalThis.Map());
   const popupsRef = useRef<globalThis.Map<string, maplibregl.Popup>>(new globalThis.Map());
-  const [collection, setCollection] = useState<Collection | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [playingPinId, setPlayingPinId] = useState<string | null>(null);
   const [showPinsList, setShowPinsList] = useState(true);
-  const [audioDurations, setAudioDurations] = useState<Record<string, number>>({});
-  const [isPublic, setIsPublic] = useState(false);
-  const [togglingPublic, setTogglingPublic] = useState(false);
-  const [shareToast, setShareToast] = useState(false);
-
-  const handleAudioMetadata = useCallback((pinId: string, duration: number) => {
-    if (!Number.isFinite(duration)) return;
-    setAudioDurations((prev) => (
-      prev[pinId] === duration ? prev : { ...prev, [pinId]: duration }
-    ));
-  }, []);
-
-  useEffect(() => {
-    const fetchCollection = async () => {
-      try {
-        const response = await fetch(`/api/collections/${collectionId}`);
-        if (!response.ok) throw new Error('Collection not found');
-        const data: Collection = await response.json();
-        setCollection(data);
-        setIsPublic(data.isPublic ?? false);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load collection');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchCollection();
-  }, [collectionId]);
+  const [playingPinId, setPlayingPinId] = useState<string | null>(null);
 
   const closeAllPopups = useCallback(() => {
     popupsRef.current.forEach((popup) => {
@@ -150,7 +117,6 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
     popupsRef.current.set(pin.id, popup);
 
     const markerEl = createMarkerElement();
-
     markerEl.addEventListener('click', () => {
       closeAllPopups();
     });
@@ -164,7 +130,7 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
   }, [createMarkerElement, closeAllPopups]);
 
   useEffect(() => {
-    if (!collection || !mapContainer.current || mapInstance.current) return;
+    if (!mapContainer.current || mapInstance.current) return;
 
     const map = new maplibregl.Map({
       container: mapContainer.current,
@@ -225,73 +191,9 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
     }, 800);
   };
 
-  const handlePlayAudio = (pinId: string) => {
-    setPlayingPinId(pinId === playingPinId ? null : pinId);
-  };
-
-  const handleTogglePublic = async () => {
-    if (togglingPublic) return;
-    setTogglingPublic(true);
-    try {
-      const res = await fetch(`/api/collections/${collectionId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isPublic: !isPublic }),
-      });
-      if (res.ok) {
-        setIsPublic(!isPublic);
-      }
-    } catch {
-      // Silently fail
-    } finally {
-      setTogglingPublic(false);
-    }
-  };
-
-  const handleCopyShareLink = async () => {
-    const shareUrl = `${window.location.origin}/share/${collectionId}`;
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setShareToast(true);
-      setTimeout(() => setShareToast(false), 2500);
-    } catch {
-      // Fallback
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-background">
-        <div className="flex items-center gap-3 text-muted">
-          <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-          </svg>
-          <span className="text-sm">Loading collection...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !collection) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen bg-background text-center px-4">
-        <div className="w-14 h-14 bg-surface-hover rounded-full flex items-center justify-center mb-5">
-          <svg className="w-7 h-7 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round"
-              d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-          </svg>
-        </div>
-        <h1 className="text-2xl font-semibold text-foreground mb-2 tracking-tight">Collection not found</h1>
-        <p className="text-muted mb-6">{error}</p>
-        <Link href="/" className="btn-primary rounded-full">Go back home</Link>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col lg:flex-row h-screen bg-background map-fullscreen">
-      {/* Map Section */}
+    <div className="flex flex-col lg:flex-row h-screen bg-background">
+      {/* Map */}
       <div className="relative h-[50vh] lg:h-full flex-1 transition-all duration-250">
         <div ref={mapContainer} className="w-full h-full" />
 
@@ -303,75 +205,32 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
               background: 'rgba(255, 255, 255, 0.9)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
             }}
           >
-            <Link href="/" className="flex items-center gap-2 text-muted hover:text-foreground transition-all duration-200 mb-2">
+            <div className="flex items-center gap-2 text-muted mb-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                <path strokeLinecap="round" strokeLinejoin="round"
+                  d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
               </svg>
-              <span className="text-sm">Back to map</span>
-            </Link>
+              <span className="text-sm font-medium">Audio Pins</span>
+            </div>
             <h1 className="text-xl font-semibold text-foreground tracking-tight">{collection.name}</h1>
             <p className="text-sm text-muted-light mt-0.5">
-              {collection.pins.length} {collection.pins.length === 1 ? 'pin' : 'pins'}
-            </p>
-            <div className="flex items-center gap-2 mt-2">
-              <button
-                onClick={handleTogglePublic}
-                disabled={togglingPublic}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 ${
-                  isPublic
-                    ? 'bg-foreground text-white border-foreground'
-                    : 'bg-white text-muted border-border hover:border-border-strong'
-                }`}
-                title={isPublic ? 'Collection is public' : 'Collection is private'}
-              >
-                {isPublic ? (
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12.75 3.03v.568c0 .334.148.65.405.864a11.04 11.04 0 012.649 2.648c.213.257.529.405.864.405H17.25M12.75 3.03A9.002 9.002 0 003.75 12c0 4.97 4.03 9 9 9a9.002 9.002 0 008.25-8.97M12.75 3.03A9 9 0 0121 11.25" />
-                  </svg>
-                ) : (
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                  </svg>
-                )}
-                {isPublic ? 'Public' : 'Private'}
-              </button>
-              {isPublic && (
-                <button
-                  onClick={handleCopyShareLink}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white text-foreground border border-border hover:bg-surface-hover transition-all duration-200"
-                >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
-                  </svg>
-                  Share
-                </button>
+              {collection.pinCount} {collection.pinCount === 1 ? 'pin' : 'pins'}
+              {collection.creator?.name && (
+                <span> by <a href={`/u/${collection.creator.id}`} className="text-muted hover:text-foreground transition-colors">{collection.creator.name}</a></span>
               )}
-            </div>
+            </p>
           </div>
 
           <div className="flex items-center gap-2 pointer-events-auto">
-            <Link
-              href="/?hint=add"
-              className="w-10 h-10 rounded-full bg-white border border-border hover:bg-surface-hover transition-all duration-200 flex items-center justify-center"
-              style={{ boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }}
-              aria-label="Add new pin"
-              title="Add new pin"
-            >
-              <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-            </Link>
-
             {!showPinsList && (
               <button
                 onClick={() => setShowPinsList(true)}
                 className="w-10 h-10 rounded-full bg-white border border-border hover:bg-surface-hover transition-all duration-200 flex items-center justify-center"
                 style={{ boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }}
                 aria-label="Show pins list"
-                title="Show pins list"
               >
                 <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
@@ -382,18 +241,18 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
         </div>
       </div>
 
-      {/* Pin List Section */}
+      {/* Pin List */}
       {showPinsList && (
-        <div className="w-full lg:w-[400px] overflow-hidden flex flex-col border-t lg:border-t-0 lg:border-l border-border animate-slide-in-right bg-white"
-             style={{ flexShrink: 0 }}>
-          {/* Header with close button */}
+        <div
+          className="w-full lg:w-[400px] overflow-hidden flex flex-col border-t lg:border-t-0 lg:border-l border-border animate-slide-in-right bg-white"
+          style={{ flexShrink: 0 }}
+        >
           <div className="px-6 py-5 border-b border-border flex items-center justify-between">
             <h2 className="text-xl font-semibold text-foreground tracking-tight">All Pins</h2>
             <button
               onClick={() => setShowPinsList(false)}
               className="w-9 h-9 text-muted hover:text-foreground rounded-full hover:bg-surface-hover flex items-center justify-center transition-all duration-200"
               aria-label="Close pins list"
-              title="Close pins list"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -406,15 +265,12 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
               <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12">
                 <div className="w-16 h-16 bg-surface-hover rounded-full flex items-center justify-center mb-5">
                   <svg className="w-8 h-8 text-muted-light" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round"
-                      d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round"
-                      d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                   </svg>
                 </div>
                 <h3 className="font-medium text-foreground text-lg mb-1">No pins yet</h3>
-                <p className="text-sm text-muted mb-5">Be the first to add a voice note!</p>
-                <Link href="/?hint=add" className="btn-primary rounded-full">Add a pin</Link>
+                <p className="text-sm text-muted">This collection doesn&apos;t have any pins.</p>
               </div>
             ) : (
               <ul className="divide-y divide-border">
@@ -425,14 +281,12 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
                       className="w-full px-6 py-4 text-left hover:bg-surface-hover transition-all duration-200 outline-none"
                     >
                       <div className="flex items-start gap-4">
-                        {/* Play button */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handlePlayAudio(pin.id);
+                            setPlayingPinId(pin.id === playingPinId ? null : pin.id);
                           }}
-                          className="flex-shrink-0 w-10 h-10 bg-surface-hover hover:bg-border rounded-full
-                                   flex items-center justify-center transition-all duration-200"
+                          className="flex-shrink-0 w-10 h-10 bg-surface-hover hover:bg-border rounded-full flex items-center justify-center transition-all duration-200"
                           aria-label={playingPinId === pin.id ? 'Pause' : 'Play'}
                         >
                           {playingPinId === pin.id ? (
@@ -448,33 +302,22 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
 
                         <div className="flex-1 min-w-0">
                           {(pin.thumbnailFile || pin.photoFile) && (
-                            <div className="relative w-full h-32 mb-2">
-                              <Image
+                            <div className="relative w-full h-32 mb-2 rounded-lg overflow-hidden">
+                              <img
                                 src={`/api/photos/${pin.thumbnailFile || pin.photoFile}`}
                                 alt={pin.title || 'Pin photo'}
-                                fill
-                                className="object-cover rounded-lg"
+                                className="w-full h-full object-cover"
                               />
                             </div>
                           )}
-                          <h3 className="font-medium text-foreground text-base">
-                            <span className="flex items-center gap-2 min-w-0">
-                              <span className="truncate flex-1">{pin.title || 'Untitled Pin'}</span>
-                              {isRecentPin(pin.createdAt) && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-border bg-surface-hover text-[10px] font-medium text-foreground">
-                                  New
-                                </span>
-                              )}
-                            </span>
+                          <h3 className="font-medium text-foreground text-base truncate">
+                            {pin.title || 'Untitled Pin'}
                           </h3>
                           {pin.description && (
-                            <p className="text-sm text-muted truncate mt-1">
-                              {pin.description}
-                            </p>
+                            <p className="text-sm text-muted truncate mt-1">{pin.description}</p>
                           )}
-                          <div className="flex items-center justify-between text-xs text-muted-light mt-1.5">
-                            <span>{formatRelativeTime(pin.createdAt)}</span>
-                            <span className="font-mono">{formatDuration(audioDurations[pin.id] ?? 0)}</span>
+                          <div className="text-xs text-muted-light mt-1.5">
+                            {formatRelativeTime(pin.createdAt)}
                           </div>
                         </div>
 
@@ -484,14 +327,6 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
                       </div>
                     </button>
 
-                    <audio
-                      className="hidden"
-                      preload="metadata"
-                      src={`/api/audio/${pin.audioFile}`}
-                      onLoadedMetadata={(e) => handleAudioMetadata(pin.id, e.currentTarget.duration)}
-                    />
-
-                    {/* Audio element for playback */}
                     {playingPinId === pin.id && (
                       <div className="px-6 pb-4">
                         <audio
@@ -510,26 +345,6 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
           </div>
         </div>
       )}
-
-      {/* Share link copied toast */}
-      <div
-        className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-200 ${
-          shareToast ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3 pointer-events-none'
-        }`}
-        aria-live="polite"
-      >
-        <div
-          className="bg-white border border-border rounded-full px-4 py-2.5 flex items-center gap-2"
-          style={{ boxShadow: '0 12px 32px rgba(0, 0, 0, 0.12)' }}
-        >
-          <span className="w-6 h-6 rounded-full bg-surface-hover flex items-center justify-center border border-border">
-            <svg className="w-3.5 h-3.5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          </span>
-          <span className="text-sm font-medium text-foreground">Link copied!</span>
-        </div>
-      </div>
     </div>
   );
 }
