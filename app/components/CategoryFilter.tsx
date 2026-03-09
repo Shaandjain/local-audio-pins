@@ -1,5 +1,7 @@
 'use client';
 
+import { motion } from 'framer-motion';
+
 const CATEGORIES = [
   { key: 'ALL', label: 'All' },
   { key: 'GENERAL', label: 'General' },
@@ -35,20 +37,31 @@ export default function CategoryFilter({ selected, onChange }: CategoryFilterPro
 
   return (
     <div className="flex items-center gap-1.5 px-3 py-2 overflow-x-auto no-scrollbar">
-      {CATEGORIES.map(({ key, label }) => {
+      {CATEGORIES.map(({ key, label }, i) => {
         const isActive = key === 'ALL' ? isAllSelected : selected.has(key);
         return (
-          <button
+          <motion.button
             key={key}
             onClick={() => handleToggle(key)}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 ${
+            className={`relative flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-150 ${
               isActive
-                ? 'bg-foreground text-white'
+                ? 'text-white'
                 : 'bg-white/80 text-muted hover:bg-white hover:text-foreground border border-border'
             }`}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.04, duration: 0.2 }}
+            whileTap={{ scale: 1.05 }}
           >
-            {label}
-          </button>
+            {isActive && (
+              <motion.div
+                layoutId="activeCategory"
+                className="absolute inset-0 bg-foreground rounded-full"
+                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+              />
+            )}
+            <span className="relative z-10">{label}</span>
+          </motion.button>
         );
       })}
     </div>

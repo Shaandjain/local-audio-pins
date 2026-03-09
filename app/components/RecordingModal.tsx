@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   getSupportedAudioMimeType,
   getAudioFileExtension,
@@ -446,15 +447,23 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center animate-fade-in"
+    <motion.div
+      className="fixed inset-0 z-50 flex items-end justify-center"
       style={{ background: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(8px)' }}
       onClick={onClose}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
     >
-      <div
-        className="w-full max-w-lg bg-white rounded-t-2xl border-t border-x border-border animate-slide-up"
+      <motion.div
+        className="w-full max-w-lg bg-white rounded-t-2xl border-t border-x border-border"
         style={{ boxShadow: '0 -8px 40px rgba(0, 0, 0, 0.15)' }}
         onClick={(e) => e.stopPropagation()}
+        initial={{ y: '100%', scale: 0.95 }}
+        animate={{ y: 0, scale: 1 }}
+        exit={{ y: '100%', opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 28 }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-border">
@@ -519,13 +528,20 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
                     key={option}
                     type="button"
                     onClick={() => setCategory(option)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 ${
+                    className={`relative px-3 py-1.5 rounded-full text-xs font-medium border transition-colors duration-200 ${
                       isSelected
-                        ? 'bg-foreground text-white border-foreground'
+                        ? 'text-white border-foreground'
                         : 'bg-surface-hover text-foreground border-border hover:border-border-strong'
                     }`}
                   >
-                    {option}
+                    {isSelected && (
+                      <motion.div
+                        layoutId="modal-category-pill"
+                        className="absolute inset-0 bg-foreground rounded-full"
+                        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                      />
+                    )}
+                    <span className="relative z-10">{option}</span>
                   </button>
                 );
               })}
@@ -616,9 +632,10 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
 
               {/* Waveform */}
               <div
-                className={`w-full h-20 rounded-xl border overflow-hidden transition-colors duration-200 ${
+                className={`w-full h-20 rounded-xl border overflow-hidden transition-all duration-200 ${
                   isRecording ? 'border-foreground' : 'border-border'
                 } bg-surface-hover`}
+                style={isRecording ? { boxShadow: '0 0 16px rgba(10, 10, 10, 0.12)' } : undefined}
               >
                 <canvas ref={waveformCanvasRef} className="w-full h-full" aria-hidden="true" />
               </div>
@@ -681,10 +698,12 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
           >
             Cancel
           </button>
-          <button
+          <motion.button
             onClick={handleSave}
             disabled={!canSave}
             className={`btn-primary rounded-full ${!canSave ? 'opacity-50 cursor-not-allowed' : ''}`}
+            whileTap={canSave ? { scale: 0.95 } : undefined}
+            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
           >
             {isSaving ? (
               <span className="flex items-center gap-2">
@@ -697,10 +716,10 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
             ) : (
               'Save Pin'
             )}
-          </button>
+          </motion.button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 

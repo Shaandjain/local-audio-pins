@@ -190,7 +190,9 @@
 
 /* MapLibre popup overrides - Modern style */
 .maplibregl-popup-content {
-  background: var(--color-surface) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
   border-radius: 16px !important;
   box-shadow: var(--shadow-strong) !important;
   padding: 0 !important;
@@ -257,11 +259,47 @@ audio::-webkit-media-controls-play-button {
 /* Marker styles */
 .custom-marker {
   cursor: pointer;
-  transition: transform 0.15s ease-out;
+  transition: transform 0.15s ease-out, filter 0.15s ease-out;
+  animation: marker-bounce-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes marker-bounce-in {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 .custom-marker:hover {
-  transform: scale(1.15);
+  transform: scale(1.1);
+  filter: drop-shadow(0 0 6px rgba(23, 23, 23, 0.25));
+}
+
+.custom-marker.marker-active {
+  animation: marker-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes marker-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+/* Popup animations */
+.maplibregl-popup {
+  animation: popup-enter 0.25s cubic-bezier(0.34, 1.3, 0.64, 1) both;
+  transform-origin: bottom center;
+}
+
+@keyframes popup-enter {
+  0% { transform: scale(0.85); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.maplibregl-popup.maplibregl-popup-anchor-bottom {
+  transform-origin: bottom center;
+}
+
+.maplibregl-popup.maplibregl-popup-anchor-top {
+  transform-origin: top center;
 }
 
 /* Recording pulse animation */
@@ -302,6 +340,19 @@ audio::-webkit-media-controls-play-button {
   overflow: hidden;
 }
 
+/* Glass card - for floating overlays */
+.glass-card {
+  background: rgba(20, 20, 20, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Enhanced shadow for hover lift states */
+.shadow-lift {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14), 0 4px 8px rgba(0, 0, 0, 0.08);
+}
+
 /* Hide scrollbar but allow scrolling */
 .no-scrollbar {
   -ms-overflow-style: none;
@@ -309,4 +360,17 @@ audio::-webkit-media-controls-play-button {
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* Reduced motion: disable all custom animations */
+@media (prefers-reduced-motion: reduce) {
+  .custom-marker,
+  .maplibregl-popup,
+  .recording-pulse {
+    animation: none !important;
+    transition: none !important;
+  }
+  .custom-marker.marker-active {
+    animation: none !important;
+  }
 }

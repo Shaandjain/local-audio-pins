@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { AnimatePresence } from 'framer-motion';
 import RecordingModal, { Pin } from './RecordingModal';
 import Header from './Header';
 import HintPill from './HintPill';
@@ -746,14 +747,16 @@ export default function MapView() {
           message={showAddPinHint ? "Click anywhere on the map to drop a pin" : undefined}
         />
 
-        {clickedLocation && !selectionMode && (
-          <RecordingModal
-            lat={clickedLocation.lat}
-            lng={clickedLocation.lng}
-            onClose={handleCloseModal}
-            onSave={handleSavePin}
-          />
-        )}
+        <AnimatePresence>
+          {clickedLocation && !selectionMode && (
+            <RecordingModal
+              lat={clickedLocation.lat}
+              lng={clickedLocation.lng}
+              onClose={handleCloseModal}
+              onSave={handleSavePin}
+            />
+          )}
+        </AnimatePresence>
 
         <Toast show={showToast} onDismiss={() => setShowToast(false)} />
       </div>

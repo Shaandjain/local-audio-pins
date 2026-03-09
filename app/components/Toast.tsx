@@ -1,0 +1,52 @@
+'use client';
+
+import { useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+interface ToastProps {
+  show: boolean;
+  message?: string;
+  onDismiss?: () => void;
+}
+
+export default function Toast({ show, message = 'Pin saved!', onDismiss }: ToastProps) {
+  useEffect(() => {
+    if (!show) return;
+    const timer = window.setTimeout(() => {
+      onDismiss?.();
+    }, 3000);
+
+    return () => window.clearTimeout(timer);
+  }, [show, onDismiss]);
+
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          className="fixed bottom-6 left-1/2 z-50"
+          style={{ x: '-50%' }}
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: -20, opacity: 0 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+          aria-live="polite"
+        >
+          <div
+            className="bg-white border border-border rounded-full px-4 py-2.5 flex items-center gap-2"
+            style={{ boxShadow: '0 12px 32px rgba(0, 0, 0, 0.12)' }}
+          >
+            <span
+              className="w-6 h-6 rounded-full bg-surface-hover flex items-center justify-center border border-border"
+              aria-hidden="true"
+            >
+              <svg className="w-3.5 h-3.5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </span>
+            <span className="text-sm font-medium text-foreground">{message}</span>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}

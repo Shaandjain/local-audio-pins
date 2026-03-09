@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import Image from 'next/image';
+import { motion } from 'framer-motion';
 import { Pin } from './RecordingModal';
 import { formatDistance, estimateTourDistance } from '../utils/tourUtils';
+import { formatDuration, isRecentPin } from '../utils/pinUtils';
 
 interface TourPanelProps {
   pins: Pin[];
@@ -11,26 +13,54 @@ interface TourPanelProps {
   onPinClick?: (pin: Pin) => void;
 }
 
+function useCountUp(target: number, duration: number = 600) {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    const start = performance.now();
+    const step = (now: number) => {
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      setValue(Math.round(target * eased));
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [target, duration]);
+  return value;
+}
+
 export default function TourPanel({ pins, onClose, onPinClick }: TourPanelProps) {
   const [playingPinId, setPlayingPinId] = useState<string | null>(null);
+  const [audioDurations, setAudioDurations] = useState<Record<string, number>>({});
   const totalDistance = estimateTourDistance(pins);
+  const animatedStops = useCountUp(pins.length);
+  const animatedDistance = useCountUp(Math.round(totalDistance));
 
   const handlePlayAudio = (pinId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setPlayingPinId(pinId === playingPinId ? null : pinId);
   };
 
+  const handleAudioMetadata = useCallback((pinId: string, duration: number) => {
+    if (!Number.isFinite(duration)) return;
+    setAudioDurations((prev) => (
+      prev[pinId] === duration ? prev : { ...prev, [pinId]: duration }
+    ));
+  }, []);
+
   return (
-    <div
-      className="w-[400px] h-full bg-white border-l border-border flex flex-col animate-slide-in-right"
+    <motion.div
+      className="w-[400px] h-full bg-white border-l border-border flex flex-col"
       style={{ flexShrink: 0 }}
+      initial={{ x: 300, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 28 }}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-5 border-b border-border flex-shrink-0">
         <div>
           <h2 className="text-xl font-semibold text-foreground tracking-tight">Your Walking Tour</h2>
           <p className="text-sm text-muted-light mt-1">
-            {pins.length} {pins.length === 1 ? 'stop' : 'stops'} · {formatDistance(totalDistance)}
+            {animatedStops} {pins.length === 1 ? 'stop' : 'stops'} · {formatDistance(animatedDistance)}
           </p>
         </div>
         <button
@@ -60,7 +90,13 @@ export default function TourPanel({ pins, onClose, onPinClick }: TourPanelProps)
         ) : (
           <ul className="py-3">
             {pins.map((pin, index) => (
-              <li key={pin.id} className="relative">
+              <motion.li
+                key={pin.id}
+                className="relative"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.06, type: 'spring', stiffness: 300, damping: 25 }}
+              >
                 {/* Connection line */}
                 {index < pins.length - 1 && (
                   <div
@@ -91,9 +127,19 @@ export default function TourPanel({ pins, onClose, onPinClick }: TourPanelProps)
                           />
                         </div>
                       )}
-                      <h3 className="font-medium text-foreground text-base">
-                        {pin.title || 'Untitled Pin'}
-                      </h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-medium text-foreground text-base truncate flex-1">
+                          {pin.title || 'Untitled Pin'}
+                        </h3>
+                        {isRecentPin(pin.createdAt) && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-border bg-surface-hover text-[10px] font-medium text-foreground">
+                            New
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-light mt-1 font-mono">
+                        {formatDuration(audioDurations[pin.id] ?? 0)}
+                      </p>
                       {pin.description && (
                         <p className="text-sm text-muted mt-1 line-clamp-2">
                           {pin.description}
@@ -107,11 +153,13 @@ export default function TourPanel({ pins, onClose, onPinClick }: TourPanelProps)
                     </div>
 
                     {/* Play Button */}
-                    <button
+                    <motion.button
                       onClick={(e) => handlePlayAudio(pin.id, e)}
                       className="absolute right-6 top-4 flex-shrink-0 w-10 h-10 bg-surface-hover hover:bg-border rounded-full
                                flex items-center justify-center transition-all duration-200"
                       aria-label={playingPinId === pin.id ? 'Pause' : 'Play audio'}
+                      animate={playingPinId === pin.id ? { scale: [1, 1.08, 1] } : { scale: 1 }}
+                      transition={playingPinId === pin.id ? { duration: 1.2, repeat: Infinity, ease: 'easeInOut' } : undefined}
                     >
                       {playingPinId === pin.id ? (
                         <svg className="w-4 h-4 text-foreground" fill="currentColor" viewBox="0 0 24 24">
@@ -122,7 +170,7 @@ export default function TourPanel({ pins, onClose, onPinClick }: TourPanelProps)
                           <path d="M8 5v14l11-7z" />
                         </svg>
                       )}
-                    </button>
+                    </motion.button>
                   </div>
 
                   {/* Audio Player */}
@@ -138,7 +186,14 @@ export default function TourPanel({ pins, onClose, onPinClick }: TourPanelProps)
                     </div>
                   )}
                 </button>
-              </li>
+
+                <audio
+                  className="hidden"
+                  preload="metadata"
+                  src={`/api/audio/${pin.audioFile}`}
+                  onLoadedMetadata={(e) => handleAudioMetadata(pin.id, e.currentTarget.duration)}
+                />
+              </motion.li>
             ))}
           </ul>
         )}
@@ -154,6 +209,6 @@ export default function TourPanel({ pins, onClose, onPinClick }: TourPanelProps)
           <span>Click a stop to view on map</span>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

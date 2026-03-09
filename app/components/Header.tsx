@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
 import { searchLocation, NominatimResult } from '../utils/geolocation';
 
 interface PinSearchResult {
@@ -155,9 +156,20 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
           <span className="text-xl font-semibold text-foreground tracking-tight">
             Audio Pins
           </span>
-          {locationName && (
-            <span className="text-sm text-muted-light font-normal">{locationName}</span>
-          )}
+          <AnimatePresence mode="wait">
+            {locationName && (
+              <motion.span
+                key={locationName}
+                className="text-sm text-muted-light font-normal"
+                initial={{ opacity: 0, y: 2 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -2 }}
+                transition={{ duration: 0.2 }}
+              >
+                {locationName}
+              </motion.span>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Actions */}
@@ -165,7 +177,12 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
           {/* Search */}
           <div className="relative" ref={searchRef}>
             {showSearch ? (
-              <div className="flex items-center gap-2">
+              <motion.div
+                className="flex items-center gap-2"
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: 'auto', opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+              >
                 <div className="relative">
                   <input
                     type="text"
@@ -193,24 +210,33 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
                 </button>
 
                 {/* Search results dropdown */}
-                {searchResults.length > 0 && (
-                  <div
-                    className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl border border-border overflow-hidden z-20 animate-scale-in"
-                    style={{ boxShadow: '0 12px 40px rgba(0, 0, 0, 0.12)' }}
-                  >
-                    {searchResults.map((result) => (
-                      <button
-                        key={result.place_id}
-                        onClick={() => handleResultClick(result)}
-                        className="w-full text-left px-4 py-3 hover:bg-surface-hover transition-colors duration-150 border-b border-border last:border-b-0"
-                      >
-                        <p className="text-sm font-medium text-foreground truncate">{result.display_name.split(',')[0]}</p>
-                        <p className="text-xs text-muted-light truncate mt-0.5">{result.display_name}</p>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+                <AnimatePresence>
+                  {searchResults.length > 0 && (
+                    <motion.div
+                      className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl border border-border overflow-hidden z-20"
+                      style={{ boxShadow: '0 12px 40px rgba(0, 0, 0, 0.12)' }}
+                      initial={{ opacity: 0, scale: 0.97, y: -4 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.97, y: -4 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                    >
+                      {searchResults.map((result, i) => (
+                        <motion.button
+                          key={result.place_id}
+                          onClick={() => handleResultClick(result)}
+                          className="w-full text-left px-4 py-3 hover:bg-surface-hover transition-colors duration-150 border-b border-border last:border-b-0"
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.05, duration: 0.15 }}
+                        >
+                          <p className="text-sm font-medium text-foreground truncate">{result.display_name.split(',')[0]}</p>
+                          <p className="text-xs text-muted-light truncate mt-0.5">{result.display_name}</p>
+                        </motion.button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
             ) : (
               <button
                 onClick={() => setShowSearch(true)}
@@ -255,35 +281,44 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
                 </button>
 
                 {/* Pin search results dropdown */}
-                {pinResults.length > 0 && (
-                  <div
-                    className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl border border-border overflow-hidden z-20 animate-scale-in"
-                    style={{ boxShadow: '0 12px 40px rgba(0, 0, 0, 0.12)' }}
-                  >
-                    {pinResults.map((pin) => (
-                      <button
-                        key={pin.id}
-                        onClick={() => handlePinResultClick(pin)}
-                        className="w-full text-left px-4 py-3 hover:bg-surface-hover transition-colors duration-150 border-b border-border last:border-b-0"
-                      >
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-foreground truncate flex-1">{pin.title}</p>
-                          <span className="flex-shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-surface-hover text-muted border border-border">
-                            {categoryLabel(pin.category)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          {pin.description && (
-                            <p className="text-xs text-muted-light truncate flex-1">{pin.description}</p>
-                          )}
-                          {pin.distance != null && (
-                            <span className="text-xs text-muted-light font-mono flex-shrink-0">{formatDistance(pin.distance)}</span>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <AnimatePresence>
+                  {pinResults.length > 0 && (
+                    <motion.div
+                      className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl border border-border overflow-hidden z-20"
+                      style={{ boxShadow: '0 12px 40px rgba(0, 0, 0, 0.12)' }}
+                      initial={{ opacity: 0, scale: 0.97, y: -4 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.97, y: -4 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                    >
+                      {pinResults.map((pin, i) => (
+                        <motion.button
+                          key={pin.id}
+                          onClick={() => handlePinResultClick(pin)}
+                          className="w-full text-left px-4 py-3 hover:bg-surface-hover transition-colors duration-150 border-b border-border last:border-b-0"
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.05, duration: 0.15 }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-foreground truncate flex-1">{pin.title}</p>
+                            <span className="flex-shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-surface-hover text-muted border border-border">
+                              {categoryLabel(pin.category)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {pin.description && (
+                              <p className="text-xs text-muted-light truncate flex-1">{pin.description}</p>
+                            )}
+                            {pin.distance != null && (
+                              <span className="text-xs text-muted-light font-mono flex-shrink-0">{formatDistance(pin.distance)}</span>
+                            )}
+                          </div>
+                        </motion.button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 {pinQuery.trim() && !isPinSearching && pinResults.length === 0 && (
                   <div
@@ -391,7 +426,7 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
           {/* Explore */}
           <Link
             href="/explore"
-            className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-surface-hover text-foreground hover:bg-border transition-all duration-200"
+            className="group relative flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-surface-hover text-foreground hover:bg-border transition-all duration-200"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
@@ -402,7 +437,7 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
           {/* My Collections */}
           <Link
             href="/collections"
-            className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-surface-hover text-foreground hover:bg-border transition-all duration-200"
+            className="group relative flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-surface-hover text-foreground hover:bg-border transition-all duration-200"
           >
             <svg
               className="w-4 h-4"
