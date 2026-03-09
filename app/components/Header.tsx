@@ -1,15 +1,76 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { searchLocation, NominatimResult } from '../utils/geolocation';
 
 interface HeaderProps {
   selectionMode?: boolean;
   onSelectionModeChange?: (enabled: boolean) => void;
+  locationName?: string | null;
+  onLocationSelect?: (lat: number, lng: number) => void;
 }
 
-export default function Header({ selectionMode = false, onSelectionModeChange }: HeaderProps) {
+export default function Header({ selectionMode = false, onSelectionModeChange, locationName, onLocationSelect }: HeaderProps) {
   const [showHelp, setShowHelp] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<NominatimResult[]>([]);
+  const [showSearch, setShowSearch] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSearch = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    const results = await searchLocation(query);
+    setSearchResults(results);
+    setIsSearching(false);
+  }, []);
+
+  const handleInputChange = (value: string) => {
+    setSearchQuery(value);
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    debounceRef.current = setTimeout(() => {
+      handleSearch(value);
+    }, 300);
+  };
+
+  const handleResultClick = (result: NominatimResult) => {
+    onLocationSelect?.(parseFloat(result.lat), parseFloat(result.lon));
+    setSearchQuery('');
+    setSearchResults([]);
+    setShowSearch(false);
+  };
+
+  // Close search dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowSearch(false);
+        setSearchResults([]);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   return (
     <header className="absolute top-0 left-0 right-0 z-10 pointer-events-none">
@@ -22,16 +83,80 @@ export default function Header({ selectionMode = false, onSelectionModeChange }:
           borderBottom: '1px solid rgba(0, 0, 0, 0.06)'
         }}
       >
-        {/* Logo - clean wordmark */}
+        {/* Logo + location */}
         <div className="flex items-baseline gap-2">
           <span className="text-xl font-semibold text-foreground tracking-tight">
             Audio Pins
           </span>
-          <span className="text-sm text-muted-light font-normal">Toronto</span>
+          {locationName && (
+            <span className="text-sm text-muted-light font-normal">{locationName}</span>
+          )}
         </div>
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          {/* Search */}
+          <div className="relative" ref={searchRef}>
+            {showSearch ? (
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => handleInputChange(e.target.value)}
+                    placeholder="Search a place..."
+                    autoFocus
+                    className="w-48 sm:w-64 px-3 py-2 rounded-full text-sm border border-border bg-surface text-foreground placeholder:text-muted-light focus:outline-none focus:border-foreground transition-all duration-200"
+                    style={{ boxShadow: 'var(--shadow-glow)' }}
+                  />
+                  {isSearching && (
+                    <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-light" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  )}
+                </div>
+                <button
+                  onClick={() => { setShowSearch(false); setSearchQuery(''); setSearchResults([]); }}
+                  className="w-9 h-9 rounded-full flex items-center justify-center text-muted hover:text-foreground hover:bg-surface-hover transition-all duration-200"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+
+                {/* Search results dropdown */}
+                {searchResults.length > 0 && (
+                  <div
+                    className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl border border-border overflow-hidden z-20 animate-scale-in"
+                    style={{ boxShadow: '0 12px 40px rgba(0, 0, 0, 0.12)' }}
+                  >
+                    {searchResults.map((result) => (
+                      <button
+                        key={result.place_id}
+                        onClick={() => handleResultClick(result)}
+                        className="w-full text-left px-4 py-3 hover:bg-surface-hover transition-colors duration-150 border-b border-border last:border-b-0"
+                      >
+                        <p className="text-sm font-medium text-foreground truncate">{result.display_name.split(',')[0]}</p>
+                        <p className="text-xs text-muted-light truncate mt-0.5">{result.display_name}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowSearch(true)}
+                className="w-9 h-9 rounded-full flex items-center justify-center text-muted hover:text-foreground hover:bg-surface-hover transition-all duration-200"
+                aria-label="Search location"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                </svg>
+              </button>
+            )}
+          </div>
+
           {/* Select Area Toggle */}
           {onSelectionModeChange && (
             <button

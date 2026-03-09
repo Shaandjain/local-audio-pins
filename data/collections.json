@@ -2,7 +2,7 @@
   "collections": [
     {
       "id": "default",
-      "name": "Toronto Pins",
+      "name": "My Pins",
       "center": {
         "lat": 43.6532,
         "lng": -79.3832

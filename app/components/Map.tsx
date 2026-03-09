@@ -71,7 +71,6 @@ export default function MapView() {
 
   // Geolocation state
   const [locationName, setLocationName] = useState<string | null>(null);
-  const [geoReady, setGeoReady] = useState(false);
   const reverseGeocodeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Check if coming from collection page with hint param
@@ -319,9 +318,7 @@ export default function MapView() {
       .catch(() => {
         // Geolocation denied or unavailable - stay on current view
       })
-      .finally(() => {
-        setGeoReady(true);
-      });
+;
 
     // Reverse geocode initial position
     updateLocationName(initialCenter.lat, initialCenter.lng);
@@ -572,6 +569,8 @@ export default function MapView() {
         <Header
           selectionMode={selectionMode}
           onSelectionModeChange={handleSelectionModeChange}
+          locationName={locationName}
+          onLocationSelect={handleLocationSelect}
         />
 
         <div ref={mapContainer} className="w-full h-full" />
