@@ -10,6 +10,7 @@ import HintPill from './HintPill';
 import SelectionPanel from './SelectionPanel';
 import TourPanel from './TourPanel';
 import Toast from './Toast';
+import CategoryFilter from './CategoryFilter';
 import { BoundingBox, getPinsInBounds, generateWalkingTour } from '../utils/tourUtils';
 import { formatDuration } from '../utils/pinUtils';
 import {
@@ -68,6 +69,9 @@ export default function MapView() {
   const [showTourPanel, setShowTourPanel] = useState(false);
   const [tourPins, setTourPins] = useState<Pin[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Category filter state
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
 
   // Geolocation state
   const [locationName, setLocationName] = useState<string | null>(null);
@@ -253,6 +257,65 @@ export default function MapView() {
     loadPins();
   }, [showAddPinHint]);
 
+  // Viewport-based pin loading (debounced)
+  const viewportLoadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadedBoundsRef = useRef<string | null>(null);
+
+  const loadViewportPins = useCallback(() => {
+    if (!mapInstance.current) return;
+
+    if (viewportLoadTimer.current) {
+      clearTimeout(viewportLoadTimer.current);
+    }
+
+    viewportLoadTimer.current = setTimeout(async () => {
+      const map = mapInstance.current;
+      if (!map) return;
+
+      const bounds = map.getBounds();
+      const boundsKey = `${bounds.getSouth().toFixed(3)},${bounds.getWest().toFixed(3)},${bounds.getNorth().toFixed(3)},${bounds.getEast().toFixed(3)}`;
+
+      // Skip if we already loaded these bounds
+      if (loadedBoundsRef.current === boundsKey) return;
+      loadedBoundsRef.current = boundsKey;
+
+      try {
+        const params = new URLSearchParams({
+          north: bounds.getNorth().toString(),
+          south: bounds.getSouth().toString(),
+          east: bounds.getEast().toString(),
+          west: bounds.getWest().toString(),
+          limit: '50',
+        });
+        const res = await fetch(`/api/search?${params}`);
+        if (res.ok) {
+          const data = await res.json();
+          // Merge viewport pins with existing pins (avoid duplicates)
+          setPins((prev) => {
+            const existingIds = new Set(prev.map((p) => p.id));
+            const newPins = data.pins
+              .filter((p: { id: string }) => !existingIds.has(p.id))
+              .map((p: { id: string; title: string; description: string; lat: number; lng: number; category: string; thumbnailFile?: string; createdAt: string }) => ({
+                id: p.id,
+                lat: p.lat,
+                lng: p.lng,
+                title: p.title,
+                description: p.description,
+                transcript: '',
+                audioFile: '',
+                category: p.category,
+                thumbnailFile: p.thumbnailFile,
+                createdAt: p.createdAt,
+              }));
+            return newPins.length > 0 ? [...prev, ...newPins] : prev;
+          });
+        }
+      } catch {
+        // ignore viewport load errors
+      }
+    }, 500);
+  }, []);
+
   // Reverse geocode the current map center (debounced)
   const updateLocationName = useCallback((lat: number, lng: number) => {
     if (reverseGeocodeTimer.current) {
@@ -323,10 +386,11 @@ export default function MapView() {
     // Reverse geocode initial position
     updateLocationName(initialCenter.lat, initialCenter.lng);
 
-    // Update location name when map stops moving
+    // Update location name and load viewport pins when map stops moving
     map.on('moveend', () => {
       const center = map.getCenter();
       updateLocationName(center.lat, center.lng);
+      loadViewportPins();
     });
 
     // Fix 1: Close popups when clicking on empty map area
@@ -357,31 +421,49 @@ export default function MapView() {
       if (reverseGeocodeTimer.current) {
         clearTimeout(reverseGeocodeTimer.current);
       }
+      if (viewportLoadTimer.current) {
+        clearTimeout(viewportLoadTimer.current);
+      }
       map.remove();
       mapInstance.current = null;
       markersRef.current.clear();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [closeAllPopups, updateLocationName]); // selectionMode removed - using ref instead to avoid map reinitialization
+  }, [closeAllPopups, updateLocationName, loadViewportPins]); // selectionMode removed - using ref instead to avoid map reinitialization
 
-  // Add markers when pins change
+  // Add markers when pins change, filter by category
   useEffect(() => {
     if (!mapInstance.current) return;
 
-    const addMarkers = () => {
+    const syncMarkers = () => {
       pins.forEach((pin) => {
-        if (!markersRef.current.has(pin.id)) {
-          addMarkerForPin(pin);
+        const pinCategory = (pin.category || 'GENERAL').toUpperCase();
+        const visible = selectedCategories.size === 0 || selectedCategories.has(pinCategory);
+
+        if (visible) {
+          if (!markersRef.current.has(pin.id)) {
+            addMarkerForPin(pin);
+          } else {
+            const marker = markersRef.current.get(pin.id)!;
+            marker.getElement().style.display = '';
+          }
+        } else {
+          const marker = markersRef.current.get(pin.id);
+          if (marker) {
+            const popup = marker.getPopup();
+            if (popup?.isOpen()) popup.remove();
+            marker.getElement().style.display = 'none';
+          }
         }
       });
     };
 
     if (mapInstance.current.loaded()) {
-      addMarkers();
+      syncMarkers();
     } else {
-      mapInstance.current.on('load', addMarkers);
+      mapInstance.current.on('load', syncMarkers);
     }
-  }, [pins, addMarkerForPin]);
+  }, [pins, addMarkerForPin, selectedCategories]);
 
   const handleCloseModal = () => {
     setClickedLocation(null);
@@ -563,7 +645,7 @@ export default function MapView() {
   const boxStyle = getBoxStyle();
 
   return (
-    <div className="relative w-screen h-screen flex">
+    <div className="relative w-screen h-screen flex map-fullscreen">
       {/* Main map area */}
       <div className="relative flex-1 transition-all duration-250">
         <Header
@@ -571,7 +653,28 @@ export default function MapView() {
           onSelectionModeChange={handleSelectionModeChange}
           locationName={locationName}
           onLocationSelect={handleLocationSelect}
+          onPinSelect={(lat, lng, pinId) => {
+            if (!mapInstance.current) return;
+            closeAllPopups();
+            mapInstance.current.flyTo({ center: [lng, lat], zoom: 15, duration: 800 });
+            setTimeout(() => {
+              const marker = markersRef.current.get(pinId);
+              if (marker) marker.togglePopup();
+            }, 800);
+          }}
         />
+
+        {/* Category filter chips */}
+        {!selectionMode && (
+          <div
+            className="absolute top-16 left-0 right-0 z-10"
+            style={{
+              background: 'linear-gradient(to bottom, rgba(255,255,255,0.7) 0%, transparent 100%)',
+            }}
+          >
+            <CategoryFilter selected={selectedCategories} onChange={setSelectedCategories} />
+          </div>
+        )}
 
         <div ref={mapContainer} className="w-full h-full" />
 

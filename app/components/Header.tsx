@@ -4,14 +4,34 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { searchLocation, NominatimResult } from '../utils/geolocation';
 
+interface PinSearchResult {
+  id: string;
+  title: string;
+  description: string;
+  lat: number;
+  lng: number;
+  category: string;
+  distance?: number | null;
+}
+
 interface HeaderProps {
   selectionMode?: boolean;
   onSelectionModeChange?: (enabled: boolean) => void;
   locationName?: string | null;
   onLocationSelect?: (lat: number, lng: number) => void;
+  onPinSelect?: (lat: number, lng: number, pinId: string) => void;
 }
 
-export default function Header({ selectionMode = false, onSelectionModeChange, locationName, onLocationSelect }: HeaderProps) {
+function categoryLabel(cat: string): string {
+  return cat.charAt(0) + cat.slice(1).toLowerCase();
+}
+
+function formatDistance(meters: number): string {
+  if (meters < 1000) return `${meters}m`;
+  return `${(meters / 1000).toFixed(1)}km`;
+}
+
+export default function Header({ selectionMode = false, onSelectionModeChange, locationName, onLocationSelect, onPinSelect }: HeaderProps) {
   const [showHelp, setShowHelp] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<NominatimResult[]>([]);
@@ -19,6 +39,14 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
   const [isSearching, setIsSearching] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Pin search state
+  const [pinQuery, setPinQuery] = useState('');
+  const [pinResults, setPinResults] = useState<PinSearchResult[]>([]);
+  const [showPinSearch, setShowPinSearch] = useState(false);
+  const [isPinSearching, setIsPinSearching] = useState(false);
+  const pinSearchRef = useRef<HTMLDivElement>(null);
+  const pinDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSearch = useCallback(async (query: string) => {
     if (!query.trim()) {
@@ -52,12 +80,50 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
     setShowSearch(false);
   };
 
-  // Close search dropdown on outside click
+  // Pin search handlers
+  const handlePinSearch = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setPinResults([]);
+      setIsPinSearching(false);
+      return;
+    }
+
+    setIsPinSearching(true);
+    try {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&limit=8`);
+      if (res.ok) {
+        const data = await res.json();
+        setPinResults(data.pins);
+      }
+    } catch {
+      // ignore
+    }
+    setIsPinSearching(false);
+  }, []);
+
+  const handlePinInputChange = (value: string) => {
+    setPinQuery(value);
+    if (pinDebounceRef.current) clearTimeout(pinDebounceRef.current);
+    pinDebounceRef.current = setTimeout(() => handlePinSearch(value), 300);
+  };
+
+  const handlePinResultClick = (pin: PinSearchResult) => {
+    onPinSelect?.(pin.lat, pin.lng, pin.id);
+    setPinQuery('');
+    setPinResults([]);
+    setShowPinSearch(false);
+  };
+
+  // Close search dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
         setShowSearch(false);
         setSearchResults([]);
+      }
+      if (pinSearchRef.current && !pinSearchRef.current.contains(e.target as Node)) {
+        setShowPinSearch(false);
+        setPinResults([]);
       }
     };
 
@@ -69,6 +135,7 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (pinDebounceRef.current) clearTimeout(pinDebounceRef.current);
     };
   }, []);
 
@@ -157,6 +224,90 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
             )}
           </div>
 
+          {/* Pin Search */}
+          <div className="relative" ref={pinSearchRef}>
+            {showPinSearch ? (
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={pinQuery}
+                    onChange={(e) => handlePinInputChange(e.target.value)}
+                    placeholder="Search pins..."
+                    autoFocus
+                    className="w-48 sm:w-64 px-3 py-2 rounded-full text-sm border border-border bg-surface text-foreground placeholder:text-muted-light focus:outline-none focus:border-foreground transition-all duration-200"
+                    style={{ boxShadow: 'var(--shadow-glow)' }}
+                  />
+                  {isPinSearching && (
+                    <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-light" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  )}
+                </div>
+                <button
+                  onClick={() => { setShowPinSearch(false); setPinQuery(''); setPinResults([]); }}
+                  className="w-9 h-9 rounded-full flex items-center justify-center text-muted hover:text-foreground hover:bg-surface-hover transition-all duration-200"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+
+                {/* Pin search results dropdown */}
+                {pinResults.length > 0 && (
+                  <div
+                    className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl border border-border overflow-hidden z-20 animate-scale-in"
+                    style={{ boxShadow: '0 12px 40px rgba(0, 0, 0, 0.12)' }}
+                  >
+                    {pinResults.map((pin) => (
+                      <button
+                        key={pin.id}
+                        onClick={() => handlePinResultClick(pin)}
+                        className="w-full text-left px-4 py-3 hover:bg-surface-hover transition-colors duration-150 border-b border-border last:border-b-0"
+                      >
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-foreground truncate flex-1">{pin.title}</p>
+                          <span className="flex-shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-surface-hover text-muted border border-border">
+                            {categoryLabel(pin.category)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {pin.description && (
+                            <p className="text-xs text-muted-light truncate flex-1">{pin.description}</p>
+                          )}
+                          {pin.distance != null && (
+                            <span className="text-xs text-muted-light font-mono flex-shrink-0">{formatDistance(pin.distance)}</span>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {pinQuery.trim() && !isPinSearching && pinResults.length === 0 && (
+                  <div
+                    className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl border border-border overflow-hidden z-20 animate-scale-in px-4 py-3"
+                    style={{ boxShadow: '0 12px 40px rgba(0, 0, 0, 0.12)' }}
+                  >
+                    <p className="text-sm text-muted">No pins found</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowPinSearch(true)}
+                className="flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium bg-surface-hover text-foreground hover:bg-border transition-all duration-200"
+                aria-label="Search pins"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                </svg>
+                <span className="hidden sm:inline">Find Pin</span>
+              </button>
+            )}
+          </div>
+
           {/* Select Area Toggle */}
           {onSelectionModeChange && (
             <button
@@ -236,6 +387,17 @@ export default function Header({ selectionMode = false, onSelectionModeChange, l
               </>
             )}
           </div>
+
+          {/* Explore */}
+          <Link
+            href="/explore"
+            className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-surface-hover text-foreground hover:bg-border transition-all duration-200"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+            </svg>
+            <span className="hidden sm:inline">Explore</span>
+          </Link>
 
           {/* Browse all */}
           <Link
