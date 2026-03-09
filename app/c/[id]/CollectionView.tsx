@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import Link from 'next/link';
@@ -24,9 +25,16 @@ interface Pin {
 interface Collection {
   id: string;
   name: string;
+  description?: string;
   isPublic?: boolean;
   center: { lat: number; lng: number };
   pins: Pin[];
+}
+
+interface CollectionSummary {
+  id: string;
+  name: string;
+  pinCount: number;
 }
 
 interface CollectionViewProps {
@@ -48,7 +56,181 @@ function formatRelativeTime(dateString: string): string {
   return date.toLocaleDateString();
 }
 
+// --- Edit Modal ---
+function EditModal({
+  collection,
+  onClose,
+  onSave,
+}: {
+  collection: Collection;
+  onClose: () => void;
+  onSave: (name: string, description: string) => void;
+}) {
+  const [name, setName] = useState(collection.name);
+  const [description, setDescription] = useState(collection.description || '');
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl border border-border p-6 w-full max-w-md mx-4 animate-scale-in"
+        style={{ boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-lg font-semibold text-foreground mb-4">Edit Collection</h2>
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="edit-name" className="block text-sm font-medium text-foreground mb-1">Name</label>
+            <input
+              id="edit-name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="input"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label htmlFor="edit-desc" className="block text-sm font-medium text-foreground mb-1">Description</label>
+            <textarea
+              id="edit-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              className="textarea"
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-3 mt-6">
+          <button
+            onClick={() => onSave(name.trim(), description.trim())}
+            disabled={!name.trim()}
+            className="btn-primary rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Save Changes
+          </button>
+          <button onClick={onClose} className="btn-secondary rounded-full">Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- Delete Confirmation Modal ---
+function DeleteModal({
+  collectionName,
+  onClose,
+  onConfirm,
+  isDeleting,
+}: {
+  collectionName: string;
+  onClose: () => void;
+  onConfirm: () => void;
+  isDeleting: boolean;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl border border-border p-6 w-full max-w-sm mx-4 animate-scale-in"
+        style={{ boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-lg font-semibold text-foreground mb-2">Delete Collection</h2>
+        <p className="text-sm text-muted mb-6">
+          Are you sure you want to delete <strong>{collectionName}</strong>? This will permanently remove all pins in this collection. This action cannot be undone.
+        </p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onConfirm}
+            disabled={isDeleting}
+            className="inline-flex items-center justify-center px-5 py-2.5 rounded-full font-medium text-sm bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+          >
+            {isDeleting ? 'Deleting...' : 'Delete'}
+          </button>
+          <button onClick={onClose} className="btn-secondary rounded-full">Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- Pin Action Modal (Move/Copy) ---
+function PinActionModal({
+  pin,
+  action,
+  collections,
+  onClose,
+  onConfirm,
+}: {
+  pin: Pin;
+  action: 'move' | 'copy';
+  collections: CollectionSummary[];
+  onClose: () => void;
+  onConfirm: (targetId: string) => void;
+}) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleConfirm = async () => {
+    if (!selectedId) return;
+    setLoading(true);
+    await onConfirm(selectedId);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl border border-border p-6 w-full max-w-sm mx-4 animate-scale-in"
+        style={{ boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-lg font-semibold text-foreground mb-1">
+          {action === 'move' ? 'Move' : 'Copy'} Pin
+        </h2>
+        <p className="text-sm text-muted mb-4">
+          {action === 'move' ? 'Move' : 'Copy'} &ldquo;{pin.title || 'Untitled Pin'}&rdquo; to:
+        </p>
+
+        {collections.length === 0 ? (
+          <p className="text-sm text-muted-light py-4 text-center">No other collections available.</p>
+        ) : (
+          <ul className="space-y-1 max-h-60 overflow-y-auto mb-4">
+            {collections.map((c) => (
+              <li key={c.id}>
+                <button
+                  onClick={() => setSelectedId(c.id)}
+                  className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                    selectedId === c.id
+                      ? 'bg-foreground text-white'
+                      : 'hover:bg-surface-hover text-foreground'
+                  }`}
+                >
+                  <span className="font-medium">{c.name}</span>
+                  <span className={`ml-2 text-xs ${selectedId === c.id ? 'text-white/70' : 'text-muted-light'}`}>
+                    {c.pinCount} {c.pinCount === 1 ? 'pin' : 'pins'}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleConfirm}
+            disabled={!selectedId || loading}
+            className="btn-primary rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? (action === 'move' ? 'Moving...' : 'Copying...') : (action === 'move' ? 'Move' : 'Copy')}
+          </button>
+          <button onClick={onClose} className="btn-secondary rounded-full">Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CollectionView({ collectionId }: CollectionViewProps) {
+  const router = useRouter();
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<globalThis.Map<string, maplibregl.Marker>>(new globalThis.Map());
@@ -59,9 +241,16 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
   const [playingPinId, setPlayingPinId] = useState<string | null>(null);
   const [showPinsList, setShowPinsList] = useState(true);
   const [audioDurations, setAudioDurations] = useState<Record<string, number>>({});
-  const [isPublic, setIsPublic] = useState(false);
-  const [togglingPublic, setTogglingPublic] = useState(false);
-  const [shareToast, setShareToast] = useState(false);
+
+  // Management modals
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Pin action state
+  const [pinActionModal, setPinActionModal] = useState<{ pin: Pin; action: 'move' | 'copy' } | null>(null);
+  const [otherCollections, setOtherCollections] = useState<CollectionSummary[]>([]);
+  const [pinMenuId, setPinMenuId] = useState<string | null>(null);
 
   const handleAudioMetadata = useCallback((pinId: string, duration: number) => {
     if (!Number.isFinite(duration)) return;
@@ -77,7 +266,6 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
         if (!response.ok) throw new Error('Collection not found');
         const data: Collection = await response.json();
         setCollection(data);
-        setIsPublic(data.isPublic ?? false);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load collection');
       } finally {
@@ -85,6 +273,22 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
       }
     };
     fetchCollection();
+  }, [collectionId]);
+
+  // Fetch other collections for move/copy
+  const fetchOtherCollections = useCallback(async () => {
+    try {
+      const res = await fetch('/api/collections');
+      if (!res.ok) return;
+      const data = await res.json();
+      setOtherCollections(
+        data.collections
+          .filter((c: CollectionSummary & { id: string }) => c.id !== collectionId)
+          .map((c: CollectionSummary & { id: string }) => ({ id: c.id, name: c.name, pinCount: c.pinCount }))
+      );
+    } catch {
+      // Silently fail
+    }
   }, [collectionId]);
 
   const closeAllPopups = useCallback(() => {
@@ -229,34 +433,77 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
     setPlayingPinId(pinId === playingPinId ? null : pinId);
   };
 
-  const handleTogglePublic = async () => {
-    if (togglingPublic) return;
-    setTogglingPublic(true);
+  // --- Collection Management Handlers ---
+
+  const handleEditSave = async (name: string, description: string) => {
+    if (!collection) return;
     try {
       const res = await fetch(`/api/collections/${collectionId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isPublic: !isPublic }),
+        body: JSON.stringify({ name, description: description || null }),
       });
-      if (res.ok) {
-        setIsPublic(!isPublic);
-      }
+      if (!res.ok) throw new Error('Failed to update');
+      setCollection({ ...collection, name, description });
+      setShowEditModal(false);
     } catch {
-      // Silently fail
-    } finally {
-      setTogglingPublic(false);
+      // Keep modal open on error
     }
   };
 
-  const handleCopyShareLink = async () => {
-    const shareUrl = `${window.location.origin}/share/${collectionId}`;
+  const handleDelete = async () => {
+    setIsDeleting(true);
     try {
-      await navigator.clipboard.writeText(shareUrl);
-      setShareToast(true);
-      setTimeout(() => setShareToast(false), 2500);
+      const res = await fetch(`/api/collections/${collectionId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || 'Failed to delete collection');
+        setIsDeleting(false);
+        return;
+      }
+      router.push('/collections');
     } catch {
-      // Fallback
+      setIsDeleting(false);
     }
+  };
+
+  const handlePinAction = async (targetCollectionId: string) => {
+    if (!pinActionModal || !collection) return;
+    const { pin, action } = pinActionModal;
+
+    const res = await fetch(`/api/pins/${pin.id}/${action}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetCollectionId }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || `Failed to ${action} pin`);
+      return;
+    }
+
+    if (action === 'move') {
+      setCollection({
+        ...collection,
+        pins: collection.pins.filter((p) => p.id !== pin.id),
+      });
+      const marker = markersRef.current.get(pin.id);
+      if (marker) {
+        marker.remove();
+        markersRef.current.delete(pin.id);
+      }
+      popupsRef.current.delete(pin.id);
+    }
+
+    setPinActionModal(null);
+    setPinMenuId(null);
+  };
+
+  const openPinAction = async (pin: Pin, action: 'move' | 'copy') => {
+    await fetchOtherCollections();
+    setPinActionModal({ pin, action });
+    setPinMenuId(null);
   };
 
   if (loading) {
@@ -306,53 +553,45 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
             }}
           >
-            <Link href="/" className="flex items-center gap-2 text-muted hover:text-foreground transition-all duration-200 mb-2">
+            <Link href="/collections" className="flex items-center gap-2 text-muted hover:text-foreground transition-all duration-200 mb-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
               </svg>
-              <span className="text-sm">Back to map</span>
+              <span className="text-sm">My Collections</span>
             </Link>
             <h1 className="text-xl font-semibold text-foreground tracking-tight">{collection.name}</h1>
             <p className="text-sm text-muted-light mt-0.5">
               {collection.pins.length} {collection.pins.length === 1 ? 'pin' : 'pins'}
             </p>
-            <div className="flex items-center gap-2 mt-2">
-              <button
-                onClick={handleTogglePublic}
-                disabled={togglingPublic}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 ${
-                  isPublic
-                    ? 'bg-foreground text-white border-foreground'
-                    : 'bg-white text-muted border-border hover:border-border-strong'
-                }`}
-                title={isPublic ? 'Collection is public' : 'Collection is private'}
-              >
-                {isPublic ? (
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12.75 3.03v.568c0 .334.148.65.405.864a11.04 11.04 0 012.649 2.648c.213.257.529.405.864.405H17.25M12.75 3.03A9.002 9.002 0 003.75 12c0 4.97 4.03 9 9 9a9.002 9.002 0 008.25-8.97M12.75 3.03A9 9 0 0121 11.25" />
-                  </svg>
-                ) : (
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                  </svg>
-                )}
-                {isPublic ? 'Public' : 'Private'}
-              </button>
-              {isPublic && (
-                <button
-                  onClick={handleCopyShareLink}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white text-foreground border border-border hover:bg-surface-hover transition-all duration-200"
-                >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
-                  </svg>
-                  Share
-                </button>
-              )}
-            </div>
           </div>
 
           <div className="flex items-center gap-2 pointer-events-auto">
+            {/* Edit button */}
+            <button
+              onClick={() => setShowEditModal(true)}
+              className="w-10 h-10 rounded-full bg-white border border-border hover:bg-surface-hover transition-all duration-200 flex items-center justify-center"
+              style={{ boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }}
+              aria-label="Edit collection"
+              title="Edit collection"
+            >
+              <svg className="w-4 h-4 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+              </svg>
+            </button>
+
+            {/* Delete button */}
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="w-10 h-10 rounded-full bg-white border border-border hover:bg-surface-hover transition-all duration-200 flex items-center justify-center"
+              style={{ boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }}
+              aria-label="Delete collection"
+              title="Delete collection"
+            >
+              <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+              </svg>
+            </button>
+
             <Link
               href="/?hint=add"
               className="w-10 h-10 rounded-full bg-white border border-border hover:bg-surface-hover transition-all duration-200 flex items-center justify-center"
@@ -419,7 +658,7 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
             ) : (
               <ul className="divide-y divide-border">
                 {collection.pins.map((pin) => (
-                  <li key={pin.id}>
+                  <li key={pin.id} className="relative">
                     <button
                       onClick={() => handlePinClick(pin)}
                       className="w-full px-6 py-4 text-left hover:bg-surface-hover transition-all duration-200 outline-none"
@@ -478,11 +717,51 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
                           </div>
                         </div>
 
-                        <svg className="w-4 h-4 text-muted-light flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                        </svg>
+                        {/* Pin context menu button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPinMenuId(pinMenuId === pin.id ? null : pin.id);
+                          }}
+                          className="flex-shrink-0 w-7 h-7 rounded-full hover:bg-border flex items-center justify-center transition-colors mt-1"
+                          aria-label="Pin options"
+                        >
+                          <svg className="w-4 h-4 text-muted-light" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+                          </svg>
+                        </button>
                       </div>
                     </button>
+
+                    {/* Pin context menu */}
+                    {pinMenuId === pin.id && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setPinMenuId(null)} />
+                        <div
+                          className="absolute right-6 top-12 z-20 bg-white rounded-xl border border-border overflow-hidden animate-scale-in"
+                          style={{ boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)', minWidth: 140 }}
+                        >
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openPinAction(pin, 'move'); }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-surface-hover transition-colors flex items-center gap-2"
+                          >
+                            <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                            </svg>
+                            Move to...
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openPinAction(pin, 'copy'); }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-surface-hover transition-colors flex items-center gap-2 border-t border-border"
+                          >
+                            <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
+                            </svg>
+                            Copy to...
+                          </button>
+                        </div>
+                      </>
+                    )}
 
                     <audio
                       className="hidden"
@@ -511,25 +790,33 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
         </div>
       )}
 
-      {/* Share link copied toast */}
-      <div
-        className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-200 ${
-          shareToast ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3 pointer-events-none'
-        }`}
-        aria-live="polite"
-      >
-        <div
-          className="bg-white border border-border rounded-full px-4 py-2.5 flex items-center gap-2"
-          style={{ boxShadow: '0 12px 32px rgba(0, 0, 0, 0.12)' }}
-        >
-          <span className="w-6 h-6 rounded-full bg-surface-hover flex items-center justify-center border border-border">
-            <svg className="w-3.5 h-3.5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          </span>
-          <span className="text-sm font-medium text-foreground">Link copied!</span>
-        </div>
-      </div>
+      {/* Modals */}
+      {showEditModal && (
+        <EditModal
+          collection={collection}
+          onClose={() => setShowEditModal(false)}
+          onSave={handleEditSave}
+        />
+      )}
+
+      {showDeleteModal && (
+        <DeleteModal
+          collectionName={collection.name}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={handleDelete}
+          isDeleting={isDeleting}
+        />
+      )}
+
+      {pinActionModal && (
+        <PinActionModal
+          pin={pinActionModal.pin}
+          action={pinActionModal.action}
+          collections={otherCollections}
+          onClose={() => { setPinActionModal(null); setPinMenuId(null); }}
+          onConfirm={handlePinAction}
+        />
+      )}
     </div>
   );
 }

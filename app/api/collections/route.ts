@@ -17,6 +17,11 @@ export async function GET() {
         _count: {
           select: { pins: true },
         },
+        pins: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { createdAt: true },
+        },
       },
       orderBy: { updatedAt: 'desc' },
     });
@@ -29,6 +34,7 @@ export async function GET() {
         isPublic: c.isPublic,
         center: { lat: c.centerLat, lng: c.centerLng },
         pinCount: c._count.pins,
+        lastPinDate: c.pins[0]?.createdAt || null,
         createdAt: c.createdAt,
         updatedAt: c.updatedAt,
       })),

@@ -53,6 +53,7 @@ export async function GET(
         return NextResponse.json({
           id: collection.id,
           name: collection.name,
+          description: collection.description,
           isPublic: collection.isPublic,
           center: { lat: collection.centerLat, lng: collection.centerLng },
           pins: collection.pins.map((p) => ({
