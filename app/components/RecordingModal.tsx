@@ -8,6 +8,7 @@ import {
   isSpeechRecognitionSupported,
   isMediaRecorderSupported,
 } from '../utils/browserCapabilities';
+import { savePendingPin, generateOfflineId } from '../utils/offlineQueue';
 
 export interface Pin {
   id: string;
@@ -401,6 +402,43 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
       onClose();
     } catch (err) {
       console.error('Error saving pin:', err);
+      // If offline or network error, save to IndexedDB queue
+      if (!navigator.onLine || (err instanceof TypeError)) {
+        try {
+          const offlineId = generateOfflineId();
+          await savePendingPin({
+            id: offlineId,
+            title: title.trim(),
+            description: description.trim(),
+            transcript,
+            lat,
+            lng,
+            audioBlob,
+            photoBlob: photoFile || undefined,
+            photoName: photoFile?.name,
+            category,
+            createdAt: new Date().toISOString(),
+            synced: false,
+          });
+          // Create a temporary pin for the UI
+          const offlinePin: Pin = {
+            id: offlineId,
+            lat,
+            lng,
+            title: title.trim(),
+            description: description.trim(),
+            transcript,
+            audioFile: '',
+            category,
+            createdAt: new Date().toISOString(),
+          };
+          onSave(offlinePin);
+          onClose();
+          return;
+        } catch (dbErr) {
+          console.error('Failed to save offline:', dbErr);
+        }
+      }
       alert('Failed to save pin. Please try again.');
     } finally {
       setIsSaving(false);
@@ -668,8 +706,8 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
 
 declare global {
   interface Window {
-    SpeechRecognition: typeof SpeechRecognition;
-    webkitSpeechRecognition: typeof SpeechRecognition;
+    SpeechRecognition: SpeechRecognitionConstructor;
+    webkitSpeechRecognition: SpeechRecognitionConstructor;
     webkitAudioContext: typeof AudioContext;
   }
 }
