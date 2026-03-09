@@ -9,6 +9,7 @@ export interface Pin {
   transcript: string;
   audioFile: string;
   photoFile?: string;
+  thumbnailFile?: string;
   category?: PinCategory;
   createdAt: string;
 

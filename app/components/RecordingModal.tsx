@@ -1,7 +1,13 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
+import {
+  getSupportedAudioMimeType,
+  getAudioFileExtension,
+  isSpeechRecognitionSupported,
+  isMediaRecorderSupported,
+} from '../utils/browserCapabilities';
 
 export interface Pin {
   id: string;
@@ -12,6 +18,8 @@ export interface Pin {
   transcript: string;
   audioFile: string;
   photoFile?: string;
+  thumbnailFile?: string;
+  category?: string;
   createdAt: string;
 }
 
@@ -20,6 +28,17 @@ interface RecordingModalProps {
   lng: number;
   onClose: () => void;
   onSave: (pin: Pin) => void;
+}
+
+interface SpeechRecognitionResult {
+  readonly isFinal: boolean;
+  readonly length: number;
+  [index: number]: { transcript: string; confidence: number };
+}
+
+interface SpeechRecognitionResultList {
+  readonly length: number;
+  [index: number]: SpeechRecognitionResult;
 }
 
 interface SpeechRecognitionEvent extends Event {
@@ -31,6 +50,25 @@ interface SpeechRecognitionErrorEvent extends Event {
   error: string;
 }
 
+interface SpeechRecognitionInstance extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: ((this: SpeechRecognitionInstance, ev: Event) => void) | null;
+  onresult: ((this: SpeechRecognitionInstance, ev: SpeechRecognitionEvent) => void) | null;
+  onerror: ((this: SpeechRecognitionInstance, ev: SpeechRecognitionErrorEvent) => void) | null;
+  onend: ((this: SpeechRecognitionInstance, ev: Event) => void) | null;
+  start(): void;
+  stop(): void;
+  abort(): void;
+}
+
+interface SpeechRecognitionConstructor {
+  new (): SpeechRecognitionInstance;
+}
+
+const CATEGORY_OPTIONS = ['General', 'Food', 'History', 'Nature', 'Culture', 'Architecture'];
+
 export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -38,18 +76,145 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [category, setCategory] = useState(CATEGORY_OPTIONS[0]);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const waveformCanvasRef = useRef<HTMLCanvasElement>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
+  const speechRecognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const waveformDataRef = useRef<Uint8Array | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const transcriptRef = useRef<string>('');
+  const recordingMimeTypeRef = useRef<string>('audio/webm');
+
+  const speechRecognitionAvailable = typeof window !== 'undefined' && isSpeechRecognitionSupported();
+  const mediaRecorderAvailable = typeof window !== 'undefined' && isMediaRecorderSupported();
 
   const canSave = title.trim() && audioBlob && !isSaving;
+
+  const resizeWaveformCanvas = useCallback(() => {
+    const canvas = waveformCanvasRef.current;
+    if (!canvas) return;
+    const ratio = window.devicePixelRatio || 1;
+    const { offsetWidth, offsetHeight } = canvas;
+    canvas.width = offsetWidth * ratio;
+    canvas.height = offsetHeight * ratio;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    }
+  }, []);
+
+  const drawIdleWaveform = useCallback(() => {
+    const canvas = waveformCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const width = canvas.offsetWidth;
+    const height = canvas.offsetHeight;
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = '#F5F5F5';
+    ctx.fillRect(0, 0, width, height);
+    ctx.strokeStyle = '#D4D4D4';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, height / 2);
+    ctx.lineTo(width, height / 2);
+    ctx.stroke();
+  }, []);
+
+  const drawWaveform = useCallback(() => {
+    const canvas = waveformCanvasRef.current;
+    const analyser = analyserRef.current;
+    const dataArray = waveformDataRef.current;
+    if (!canvas || !analyser || !dataArray) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const width = canvas.offsetWidth;
+    const height = canvas.offsetHeight;
+
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = '#F5F5F5';
+    ctx.fillRect(0, 0, width, height);
+
+    analyser.getByteTimeDomainData(dataArray);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#0A0A0A';
+    ctx.beginPath();
+
+    const sliceWidth = width / dataArray.length;
+    let x = 0;
+
+    for (let i = 0; i < dataArray.length; i++) {
+      const v = dataArray[i] / 128.0;
+      const y = (v * height) / 2;
+
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+
+      x += sliceWidth;
+    }
+
+    ctx.stroke();
+    animationFrameRef.current = window.requestAnimationFrame(drawWaveform);
+  }, []);
+
+  const startWaveform = useCallback((stream: MediaStream) => {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    const audioContext = new AudioContextClass();
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 2048;
+    const source = audioContext.createMediaStreamSource(stream);
+    source.connect(analyser);
+
+    audioContextRef.current = audioContext;
+    analyserRef.current = analyser;
+    waveformDataRef.current = new Uint8Array(analyser.fftSize);
+
+    resizeWaveformCanvas();
+    drawWaveform();
+  }, [drawWaveform, resizeWaveformCanvas]);
+
+  const stopWaveform = useCallback(() => {
+    if (animationFrameRef.current) {
+      window.cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+
+    analyserRef.current = null;
+    waveformDataRef.current = null;
+
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+
+    drawIdleWaveform();
+  }, [drawIdleWaveform]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      resizeWaveformCanvas();
+      if (!isRecording) {
+        drawIdleWaveform();
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [drawIdleWaveform, isRecording, resizeWaveformCanvas]);
 
   useEffect(() => {
     return () => {
@@ -62,8 +227,9 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
       if (speechRecognitionRef.current) {
         speechRecognitionRef.current.stop();
       }
+      stopWaveform();
     };
-  }, [audioUrl, photoUrl]);
+  }, [audioUrl, photoUrl, stopWaveform]);
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -98,13 +264,29 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
   };
 
   const startRecording = async () => {
+    if (!mediaRecorderAvailable) {
+      alert('Audio recording is not supported in your browser. Please use Chrome, Firefox, Safari, or Edge.');
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+
+      const supportedMimeType = getSupportedAudioMimeType();
+      const recorderOptions: MediaRecorderOptions = {};
+      if (supportedMimeType) {
+        recorderOptions.mimeType = supportedMimeType;
+        recordingMimeTypeRef.current = supportedMimeType;
+      } else {
+        recordingMimeTypeRef.current = 'audio/webm';
+      }
+
+      const mediaRecorder = new MediaRecorder(stream, recorderOptions);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
       transcriptRef.current = '';
       setTranscript('');
+      startWaveform(stream);
 
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
@@ -113,7 +295,8 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const mimeType = recordingMimeTypeRef.current;
+        const blob = new Blob(chunksRef.current, { type: mimeType });
         setAudioBlob(blob);
         if (audioUrl) {
           URL.revokeObjectURL(audioUrl);
@@ -122,9 +305,9 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
         stream.getTracks().forEach(track => track.stop());
       };
 
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
+      if (speechRecognitionAvailable) {
+        const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognitionCtor();
         recognition.continuous = true;
         recognition.interimResults = true;
         recognition.lang = 'en-US';
@@ -182,6 +365,7 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
     if (speechRecognitionRef.current) {
       speechRecognitionRef.current.stop();
     }
+    stopWaveform();
   };
 
   const handleSave = async () => {
@@ -196,7 +380,9 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
       formData.append('title', title.trim());
       formData.append('description', description.trim());
       formData.append('transcript', transcript);
-      formData.append('audio', audioBlob, 'recording.webm');
+      const ext = getAudioFileExtension(recordingMimeTypeRef.current);
+      formData.append('audio', audioBlob, `recording${ext}`);
+      formData.append('category', category);
       if (photoFile) {
         formData.append('photo', photoFile);
       }
@@ -282,6 +468,32 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
             />
           </div>
 
+          {/* Category */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Category
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {CATEGORY_OPTIONS.map((option) => {
+                const isSelected = category === option;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setCategory(option)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 ${
+                      isSelected
+                        ? 'bg-foreground text-white border-foreground'
+                        : 'bg-surface-hover text-foreground border-border hover:border-border-strong'
+                    }`}
+                  >
+                    {option}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Photo Upload */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
@@ -364,6 +576,15 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
                 )}
               </div>
 
+              {/* Waveform */}
+              <div
+                className={`w-full h-20 rounded-xl border overflow-hidden transition-colors duration-200 ${
+                  isRecording ? 'border-foreground' : 'border-border'
+                } bg-surface-hover`}
+              >
+                <canvas ref={waveformCanvasRef} className="w-full h-full" aria-hidden="true" />
+              </div>
+
               {/* Audio Preview */}
               {audioUrl && (
                 <audio
@@ -377,21 +598,39 @@ export default function RecordingModal({ lat, lng, onClose, onSave }: RecordingM
           </div>
 
           {/* Transcript */}
-          {(transcript || isRecording) && (
+          {speechRecognitionAvailable ? (
+            (transcript || isRecording) && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <label className="text-sm font-medium text-foreground">
+                    Transcript
+                  </label>
+                  {isTranscribing && (
+                    <span className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide rounded-full bg-foreground text-white">
+                      Live
+                    </span>
+                  )}
+                </div>
+                <div className="p-4 bg-surface-hover rounded-xl text-sm text-muted min-h-[48px] leading-relaxed">
+                  {transcript || 'Listening...'}
+                </div>
+              </div>
+            )
+          ) : (
             <div>
-              <div className="flex items-center gap-2 mb-2">
-                <label className="text-sm font-medium text-foreground">
-                  Transcript
-                </label>
-                {isTranscribing && (
-                  <span className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide rounded-full bg-foreground text-white">
-                    Live
-                  </span>
-                )}
-              </div>
-              <div className="p-4 bg-surface-hover rounded-xl text-sm text-muted min-h-[48px] leading-relaxed">
-                {transcript || 'Listening...'}
-              </div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Transcript
+              </label>
+              <p className="text-xs text-muted mb-2">
+                Live transcription unavailable in this browser. You can type your transcript below.
+              </p>
+              <textarea
+                value={transcript}
+                onChange={(e) => setTranscript(e.target.value)}
+                className="textarea"
+                placeholder="Type your transcript here..."
+                rows={3}
+              />
             </div>
           )}
         </div>
@@ -431,5 +670,6 @@ declare global {
   interface Window {
     SpeechRecognition: typeof SpeechRecognition;
     webkitSpeechRecognition: typeof SpeechRecognition;
+    webkitAudioContext: typeof AudioContext;
   }
 }

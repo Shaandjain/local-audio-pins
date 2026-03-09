@@ -5,6 +5,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import Link from 'next/link';
 import Image from 'next/image';
+import { formatDuration, isRecentPin } from '../../utils/pinUtils';
 
 interface Pin {
   id: string;
@@ -15,6 +16,8 @@ interface Pin {
   transcript: string;
   audioFile: string;
   photoFile?: string;
+  thumbnailFile?: string;
+  category?: string;
   createdAt: string;
 }
 
@@ -54,6 +57,14 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [playingPinId, setPlayingPinId] = useState<string | null>(null);
   const [showPinsList, setShowPinsList] = useState(true);
+  const [audioDurations, setAudioDurations] = useState<Record<string, number>>({});
+
+  const handleAudioMetadata = useCallback((pinId: string, duration: number) => {
+    if (!Number.isFinite(duration)) return;
+    setAudioDurations((prev) => (
+      prev[pinId] === duration ? prev : { ...prev, [pinId]: duration }
+    ));
+  }, []);
 
   useEffect(() => {
     const fetchCollection = async () => {
@@ -107,11 +118,13 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
     const popupContent = `
       <div style="padding: 20px; min-width: 260px; max-width: 300px;">
         ${pin.photoFile ? `
-          <img 
-            src="/api/photos/${pin.photoFile}" 
-            alt="${pin.title || 'Pin photo'}"
-            style="width: 100%; height: 180px; object-fit: cover; border-radius: 12px; margin-bottom: 12px;"
-          />
+          <a href="/api/photos/${pin.photoFile}" target="_blank" rel="noopener noreferrer">
+            <img
+              src="/api/photos/${pin.thumbnailFile || pin.photoFile}"
+              alt="${pin.title || 'Pin photo'}"
+              style="width: 100%; height: 180px; object-fit: cover; border-radius: 12px; margin-bottom: 12px; cursor: pointer;"
+            />
+          </a>
         ` : ''}
         <h3 style="font-weight: 600; color: #0A0A0A; font-size: 17px; margin-bottom: 6px; letter-spacing: -0.02em;">
           ${pin.title || 'Untitled Pin'}
@@ -365,27 +378,35 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
                         </button>
 
                         <div className="flex-1 min-w-0">
-                          {pin.photoFile && (
+                          {(pin.thumbnailFile || pin.photoFile) && (
                             <div className="relative w-full h-32 mb-2">
                               <Image
-                                src={`/api/photos/${pin.photoFile}`}
+                                src={`/api/photos/${pin.thumbnailFile || pin.photoFile}`}
                                 alt={pin.title || 'Pin photo'}
                                 fill
                                 className="object-cover rounded-lg"
                               />
                             </div>
                           )}
-                          <h3 className="font-medium text-foreground text-base truncate">
-                            {pin.title || 'Untitled Pin'}
+                          <h3 className="font-medium text-foreground text-base">
+                            <span className="flex items-center gap-2 min-w-0">
+                              <span className="truncate flex-1">{pin.title || 'Untitled Pin'}</span>
+                              {isRecentPin(pin.createdAt) && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-border bg-surface-hover text-[10px] font-medium text-foreground">
+                                  New
+                                </span>
+                              )}
+                            </span>
                           </h3>
                           {pin.description && (
                             <p className="text-sm text-muted truncate mt-1">
                               {pin.description}
                             </p>
                           )}
-                          <p className="text-xs text-muted-light mt-1.5">
-                            {formatRelativeTime(pin.createdAt)}
-                          </p>
+                          <div className="flex items-center justify-between text-xs text-muted-light mt-1.5">
+                            <span>{formatRelativeTime(pin.createdAt)}</span>
+                            <span className="font-mono">{formatDuration(audioDurations[pin.id] ?? 0)}</span>
+                          </div>
                         </div>
 
                         <svg className="w-4 h-4 text-muted-light flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -393,6 +414,13 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
                         </svg>
                       </div>
                     </button>
+
+                    <audio
+                      className="hidden"
+                      preload="metadata"
+                      src={`/api/audio/${pin.audioFile}`}
+                      onLoadedMetadata={(e) => handleAudioMetadata(pin.id, e.currentTarget.duration)}
+                    />
 
                     {/* Audio element for playback */}
                     {playingPinId === pin.id && (

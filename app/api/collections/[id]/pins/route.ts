@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import path from 'path';
+import { processImage } from '../../../../lib/services/imageProcessor';
 
 const DATA_PATH = path.join(process.cwd(), 'data', 'collections.json');
 const AUDIO_PATH = path.join(process.cwd(), 'data', 'audio');
@@ -15,6 +16,8 @@ interface Pin {
   transcript: string;
   audioFile: string;
   photoFile?: string;
+  thumbnailFile?: string;
+  category?: string;
   createdAt: string;
 }
 
@@ -73,6 +76,7 @@ export async function POST(
     const transcript = formData.get('transcript') as string;
     const audio = formData.get('audio') as File;
     const photo = formData.get('photo') as File | null;
+    const category = formData.get('category') as string | null;
 
     if (!audio || !lat || !lng) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -106,20 +110,26 @@ export async function POST(
 
     // Generate pin ID and save audio file
     const pinId = generateId();
-    const audioFileName = `${pinId}.webm`;
+    const audioExt = path.extname(audio.name) || '.webm';
+    const audioFileName = `${pinId}${audioExt}`;
     const audioFilePath = path.join(AUDIO_PATH, audioFileName);
 
     const audioBuffer = Buffer.from(await audio.arrayBuffer());
     writeFileSync(audioFilePath, audioBuffer);
 
-    // Save photo if provided
+    // Process and save photo if provided
     let photoFileName: string | undefined;
+    let thumbnailFileName: string | undefined;
     if (photo) {
-      const ext = path.extname(photo.name) || '.jpg';
-      photoFileName = `${pinId}${ext}`;
-      const photoFilePath = path.join(PHOTOS_PATH, photoFileName);
       const photoBuffer = Buffer.from(await photo.arrayBuffer());
-      writeFileSync(photoFilePath, photoBuffer);
+      const processed = await processImage(photoBuffer);
+      const ext = processed.format === 'webp' ? '.webp' : '.jpg';
+
+      photoFileName = `${pinId}${ext}`;
+      thumbnailFileName = `${pinId}_thumb${ext}`;
+
+      writeFileSync(path.join(PHOTOS_PATH, photoFileName), processed.fullBuffer);
+      writeFileSync(path.join(PHOTOS_PATH, thumbnailFileName), processed.thumbnailBuffer);
     }
 
     // Create pin object
@@ -132,6 +142,8 @@ export async function POST(
       transcript: transcript || '',
       audioFile: audioFileName,
       photoFile: photoFileName,
+      thumbnailFile: thumbnailFileName,
+      category: category || undefined,
       createdAt: new Date().toISOString(),
     };
 

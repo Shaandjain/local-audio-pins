@@ -9,7 +9,17 @@ import Header from './Header';
 import HintPill from './HintPill';
 import SelectionPanel from './SelectionPanel';
 import TourPanel from './TourPanel';
+import Toast from './Toast';
 import { BoundingBox, getPinsInBounds, generateWalkingTour } from '../utils/tourUtils';
+import { formatDuration } from '../utils/pinUtils';
+import {
+  getSavedLocation,
+  requestGeolocation,
+  reverseGeocode,
+  DEFAULT_POSITION,
+  DEFAULT_ZOOM,
+  LOCATED_ZOOM,
+} from '../utils/geolocation';
 
 interface ClickedLocation {
   lat: number;
@@ -46,6 +56,7 @@ export default function MapView() {
   const [clickedLocation, setClickedLocation] = useState<ClickedLocation | null>(null);
   const [pins, setPins] = useState<Pin[]>([]);
   const [showHint, setShowHint] = useState(true);
+  const [showToast, setShowToast] = useState(false);
 
   // Selection mode state
   const [selectionMode, setSelectionMode] = useState(false);
@@ -57,6 +68,11 @@ export default function MapView() {
   const [showTourPanel, setShowTourPanel] = useState(false);
   const [tourPins, setTourPins] = useState<Pin[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Geolocation state
+  const [locationName, setLocationName] = useState<string | null>(null);
+  const [geoReady, setGeoReady] = useState(false);
+  const reverseGeocodeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Check if coming from collection page with hint param
   const showAddPinHint = searchParams.get('hint') === 'add';
@@ -97,17 +113,71 @@ export default function MapView() {
     return el;
   }, []);
 
+  const attachPopupHandlers = useCallback((popup: maplibregl.Popup, pin: Pin) => {
+    popup.on('open', () => {
+      const popupEl = popup.getElement();
+      if (!popupEl) return;
+
+      const audioEl = popupEl.querySelector('audio') as HTMLAudioElement | null;
+      const durationEl = popupEl.querySelector('[data-duration]') as HTMLElement | null;
+
+      if (audioEl && durationEl) {
+        const updateDuration = () => {
+          if (!Number.isFinite(audioEl.duration)) return;
+          durationEl.textContent = formatDuration(audioEl.duration);
+        };
+
+        if (audioEl.readyState >= 1) {
+          updateDuration();
+        } else {
+          audioEl.addEventListener('loadedmetadata', updateDuration, { once: true });
+        }
+      }
+
+      const shareButton = popupEl.querySelector('[data-share]') as HTMLButtonElement | null;
+      if (shareButton && !shareButton.dataset.bound) {
+        shareButton.dataset.bound = 'true';
+        const defaultLabel = shareButton.textContent || 'Share';
+
+        shareButton.addEventListener('click', async (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+
+          const origin = window.location.origin;
+          const shareUrl = `${origin}/c/default?pin=${encodeURIComponent(pin.id)}`;
+
+          try {
+            await navigator.clipboard.writeText(shareUrl);
+            shareButton.textContent = 'Copied!';
+            shareButton.disabled = true;
+            shareButton.style.opacity = '0.7';
+
+            window.setTimeout(() => {
+              shareButton.textContent = defaultLabel;
+              shareButton.disabled = false;
+              shareButton.style.opacity = '1';
+            }, 2000);
+          } catch (err) {
+            console.error('Failed to copy share URL:', err);
+          }
+        });
+      }
+    });
+  }, [formatDuration]);
+
   const addMarkerForPin = useCallback((pin: Pin) => {
     if (!mapInstance.current) return;
 
     const popupContent = `
       <div style="padding: 20px; min-width: 260px; max-width: 300px;">
         ${pin.photoFile ? `
-          <img 
-            src="/api/photos/${pin.photoFile}" 
-            alt="${pin.title || 'Pin photo'}"
-            style="width: 100%; height: 180px; object-fit: cover; border-radius: 12px; margin-bottom: 12px;"
-          />
+          <a href="/api/photos/${pin.photoFile}" target="_blank" rel="noopener noreferrer">
+            <img
+              src="/api/photos/${pin.thumbnailFile || pin.photoFile}"
+              alt="${pin.title || 'Pin photo'}"
+              style="width: 100%; height: 180px; object-fit: cover; border-radius: 12px; margin-bottom: 12px; cursor: pointer;"
+            />
+          </a>
         ` : ''}
         <h3 style="font-weight: 600; color: #0A0A0A; font-size: 17px; margin-bottom: 6px; letter-spacing: -0.02em;">
           ${pin.title || 'Untitled Pin'}
@@ -121,11 +191,21 @@ export default function MapView() {
           controls
           src="/api/audio/${pin.audioFile}"
           style="width: 100%; height: 40px; margin-bottom: 12px;"
-          preload="none"
+          preload="metadata"
         ></audio>
         <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #A3A3A3;">
           <span>${formatRelativeTime(pin.createdAt)}</span>
-          <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px;">${pin.lat.toFixed(4)}, ${pin.lng.toFixed(4)}</span>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span data-duration style="font-family: 'JetBrains Mono', monospace; font-size: 11px;">${formatDuration(0)}</span>
+            <button
+              type="button"
+              data-share
+              style="border: 1px solid #E5E5E5; background: #FFFFFF; padding: 4px 8px; border-radius: 999px; font-size: 11px; color: #0A0A0A; cursor: pointer;"
+            >Share</button>
+          </div>
+        </div>
+        <div style="margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #A3A3A3;">
+          ${pin.lat.toFixed(4)}, ${pin.lng.toFixed(4)}
         </div>
       </div>
     `;
@@ -136,6 +216,8 @@ export default function MapView() {
       closeOnClick: false,
       maxWidth: '340px',
     }).setHTML(popupContent);
+
+    attachPopupHandlers(popup, pin);
 
     const markerEl = createMarkerElement();
 
@@ -150,7 +232,7 @@ export default function MapView() {
       .addTo(mapInstance.current);
 
     markersRef.current.set(pin.id, marker);
-  }, [createMarkerElement, closeAllPopups]);
+  }, [attachPopupHandlers, createMarkerElement, closeAllPopups]);
 
   // Load existing pins on mount
   useEffect(() => {
@@ -172,7 +254,29 @@ export default function MapView() {
     loadPins();
   }, [showAddPinHint]);
 
-  // Initialize map
+  // Reverse geocode the current map center (debounced)
+  const updateLocationName = useCallback((lat: number, lng: number) => {
+    if (reverseGeocodeTimer.current) {
+      clearTimeout(reverseGeocodeTimer.current);
+    }
+
+    reverseGeocodeTimer.current = setTimeout(async () => {
+      const name = await reverseGeocode(lat, lng);
+      setLocationName(name);
+    }, 1000);
+  }, []);
+
+  // Handle flying to a searched location
+  const handleLocationSelect = useCallback((lat: number, lng: number) => {
+    if (!mapInstance.current) return;
+    mapInstance.current.flyTo({
+      center: [lng, lat],
+      zoom: LOCATED_ZOOM,
+      duration: 1500,
+    });
+  }, []);
+
+  // Initialize map with geolocation
   useEffect(() => {
     if (!mapContainer.current) return;
 
@@ -182,14 +286,51 @@ export default function MapView() {
       markersRef.current.clear();
     }
 
+    // Determine initial position from cache or default
+    const saved = getSavedLocation();
+    const initialCenter = saved
+      ? { lng: saved.lng, lat: saved.lat }
+      : { lng: DEFAULT_POSITION.lng, lat: DEFAULT_POSITION.lat };
+    const initialZoom = saved ? LOCATED_ZOOM : DEFAULT_ZOOM;
+
     const map = new maplibregl.Map({
       container: mapContainer.current,
       style: 'https://tiles.openfreemap.org/styles/liberty',
-      center: [-79.3832, 43.6532],
-      zoom: 12,
+      center: [initialCenter.lng, initialCenter.lat],
+      zoom: initialZoom,
     });
 
     mapInstance.current = map;
+
+    // Request fresh geolocation
+    requestGeolocation()
+      .then((pos) => {
+        if (saved) {
+          // Only fly if significantly different (> ~5km)
+          const dlat = Math.abs(pos.lat - saved.lat);
+          const dlng = Math.abs(pos.lng - saved.lng);
+          if (dlat > 0.05 || dlng > 0.05) {
+            map.flyTo({ center: [pos.lng, pos.lat], zoom: LOCATED_ZOOM, duration: 1500 });
+          }
+        } else {
+          map.flyTo({ center: [pos.lng, pos.lat], zoom: LOCATED_ZOOM, duration: 1500 });
+        }
+      })
+      .catch(() => {
+        // Geolocation denied or unavailable - stay on current view
+      })
+      .finally(() => {
+        setGeoReady(true);
+      });
+
+    // Reverse geocode initial position
+    updateLocationName(initialCenter.lat, initialCenter.lng);
+
+    // Update location name when map stops moving
+    map.on('moveend', () => {
+      const center = map.getCenter();
+      updateLocationName(center.lat, center.lng);
+    });
 
     // Fix 1: Close popups when clicking on empty map area
     map.on('click', (e) => {
@@ -216,12 +357,15 @@ export default function MapView() {
     );
 
     return () => {
+      if (reverseGeocodeTimer.current) {
+        clearTimeout(reverseGeocodeTimer.current);
+      }
       map.remove();
       mapInstance.current = null;
       markersRef.current.clear();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [closeAllPopups]); // selectionMode removed - using ref instead to avoid map reinitialization
+  }, [closeAllPopups, updateLocationName]); // selectionMode removed - using ref instead to avoid map reinitialization
 
   // Add markers when pins change
   useEffect(() => {
@@ -250,6 +394,7 @@ export default function MapView() {
     setPins((prev) => [...prev, pin]);
     addMarkerForPin(pin);
     setShowHint(false);
+    setShowToast(true);
   };
 
   // Fix 2: Selection mode handlers with easy exit
@@ -507,6 +652,8 @@ export default function MapView() {
             onSave={handleSavePin}
           />
         )}
+
+        <Toast show={showToast} onDismiss={() => setShowToast(false)} />
       </div>
 
       {/* Fix 5: Tour side panel */}
