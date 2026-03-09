@@ -2,6 +2,31 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
+
+const prefersReducedMotion =
+  typeof window !== 'undefined' &&
+  window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+const spring = { type: 'spring' as const, stiffness: 350, damping: 25 };
+
+const containerVariants = {
+  hidden: { opacity: prefersReducedMotion ? 1 : 0 },
+  show: {
+    opacity: 1,
+    transition: prefersReducedMotion ? {} : { staggerChildren: 0.06 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: prefersReducedMotion ? 1 : 0, y: prefersReducedMotion ? 0 : 20 },
+  show: { opacity: 1, y: 0, transition: spring },
+};
+
+const sectionVariants = {
+  hidden: { opacity: prefersReducedMotion ? 1 : 0, y: prefersReducedMotion ? 0 : 30 },
+  visible: { opacity: 1, y: 0, transition: spring },
+};
 
 interface PinResult {
   id: string;
@@ -128,34 +153,79 @@ export default function ExplorePage() {
           <>
             {/* Nearby Section */}
             {nearbyPins.length > 0 && (
-              <section className="mb-10">
-                <h2 className="text-lg font-semibold text-foreground tracking-tight mb-4">Nearby</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <motion.section
+                className="mb-10"
+                variants={sectionVariants}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, amount: 0.2 }}
+              >
+                <motion.h2
+                  className="text-lg font-semibold text-foreground tracking-tight mb-4"
+                  initial={prefersReducedMotion ? false : { opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={spring}
+                >
+                  Nearby
+                </motion.h2>
+                <motion.div
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+                  variants={containerVariants}
+                  initial="hidden"
+                  whileInView="show"
+                  viewport={{ once: true, amount: 0.1 }}
+                >
                   {nearbyPins.map((pin) => (
                     <PinCard key={pin.id} pin={pin} showDistance={true} />
                   ))}
-                </div>
-              </section>
+                </motion.div>
+              </motion.section>
             )}
 
             {/* Recent Pins */}
-            <section className="mb-10">
-              <h2 className="text-lg font-semibold text-foreground tracking-tight mb-4">Recent Pins</h2>
+            <motion.section
+              className="mb-10"
+              variants={sectionVariants}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, amount: 0.2 }}
+            >
+              <motion.h2
+                className="text-lg font-semibold text-foreground tracking-tight mb-4"
+                initial={prefersReducedMotion ? false : { opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={spring}
+              >
+                Recent Pins
+              </motion.h2>
               {recentPins.length === 0 ? (
-                <div className="text-center py-12">
+                <motion.div
+                  className="text-center py-12"
+                  initial={prefersReducedMotion ? false : { opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                >
                   <p className="text-muted">No pins yet. Drop your first pin on the map!</p>
                   <Link href="/" className="inline-block mt-4 btn-primary rounded-full px-5 py-2.5 text-sm font-medium">
                     Go to map
                   </Link>
-                </div>
+                </motion.div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <motion.div
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+                  variants={containerVariants}
+                  initial="hidden"
+                  whileInView="show"
+                  viewport={{ once: true, amount: 0.1 }}
+                >
                   {recentPins.map((pin) => (
                     <PinCard key={pin.id} pin={pin} showDistance={!!userLocation} />
                   ))}
-                </div>
+                </motion.div>
               )}
-            </section>
+            </motion.section>
           </>
         )}
       </main>
@@ -165,37 +235,44 @@ export default function ExplorePage() {
 
 function PinCard({ pin, showDistance }: { pin: PinResult; showDistance: boolean }) {
   return (
-    <Link
-      href={`/c/${pin.collectionId}?pin=${pin.id}`}
-      className="card p-4 hover:border-border-strong transition-all duration-200 block"
+    <motion.div
+      variants={itemVariants}
+      whileHover={prefersReducedMotion ? {} : { y: -4, scale: 1.02, boxShadow: '0 20px 40px rgba(0,0,0,0.12)' }}
+      whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
+      transition={spring}
     >
-      {pin.thumbnailFile && (
-        <div className="relative w-full h-32 mb-3 rounded-lg overflow-hidden bg-surface-hover">
-          <img
-            src={`/api/photos/${pin.thumbnailFile}`}
-            alt={pin.title}
-            className="w-full h-full object-cover"
-          />
+      <Link
+        href={`/c/${pin.collectionId}?pin=${pin.id}`}
+        className="card p-4 hover:border-border-strong transition-colors duration-200 block"
+      >
+        {pin.thumbnailFile && (
+          <div className="relative w-full h-32 mb-3 rounded-lg overflow-hidden bg-surface-hover">
+            <img
+              src={`/api/photos/${pin.thumbnailFile}`}
+              alt={pin.title}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="font-medium text-foreground text-sm truncate flex-1">{pin.title}</h3>
+          <span className="flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium bg-surface-hover text-muted border border-border">
+            {categoryLabel(pin.category)}
+          </span>
         </div>
-      )}
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="font-medium text-foreground text-sm truncate flex-1">{pin.title}</h3>
-        <span className="flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium bg-surface-hover text-muted border border-border">
-          {categoryLabel(pin.category)}
-        </span>
-      </div>
-      {pin.description && (
-        <p className="text-xs text-muted mt-1 line-clamp-2">{pin.description}</p>
-      )}
-      <div className="flex items-center justify-between mt-2 text-[11px] text-muted-light">
-        <span>{formatRelativeTime(pin.createdAt)}</span>
-        <div className="flex items-center gap-2">
-          {showDistance && pin.distance != null && (
-            <span className="font-mono">{formatDistance(pin.distance)}</span>
-          )}
-          <span className="truncate max-w-[100px]">{pin.collectionName}</span>
+        {pin.description && (
+          <p className="text-xs text-muted mt-1 line-clamp-2">{pin.description}</p>
+        )}
+        <div className="flex items-center justify-between mt-2 text-[11px] text-muted-light">
+          <span>{formatRelativeTime(pin.createdAt)}</span>
+          <div className="flex items-center gap-2">
+            {showDistance && pin.distance != null && (
+              <span className="font-mono">{formatDistance(pin.distance)}</span>
+            )}
+            <span className="truncate max-w-[100px]">{pin.collectionName}</span>
+          </div>
         </div>
-      </div>
-    </Link>
+      </Link>
+    </motion.div>
   );
 }

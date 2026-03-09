@@ -6,7 +6,27 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import Link from 'next/link';
 import Image from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
 import { formatDuration, isRecentPin } from '../../utils/pinUtils';
+
+const prefersReducedMotion =
+  typeof window !== 'undefined' &&
+  window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+const spring = { type: 'spring' as const, stiffness: 350, damping: 25 };
+
+const listContainer = {
+  hidden: { opacity: prefersReducedMotion ? 1 : 0 },
+  show: {
+    opacity: 1,
+    transition: prefersReducedMotion ? {} : { staggerChildren: 0.06 },
+  },
+};
+
+const listItem = {
+  hidden: { opacity: prefersReducedMotion ? 1 : 0, y: prefersReducedMotion ? 0 : 16 },
+  show: { opacity: 1, y: 0, transition: spring },
+};
 
 interface Pin {
   id: string;
@@ -56,6 +76,19 @@ function formatRelativeTime(dateString: string): string {
   return date.toLocaleDateString();
 }
 
+// --- Modal animation wrapper ---
+const modalOverlayVariants = {
+  hidden: { opacity: prefersReducedMotion ? 1 : 0 },
+  visible: { opacity: 1 },
+  exit: { opacity: 0 },
+};
+
+const modalContentVariants = {
+  hidden: { opacity: prefersReducedMotion ? 1 : 0, scale: prefersReducedMotion ? 1 : 0.92 },
+  visible: { opacity: 1, scale: 1, transition: spring },
+  exit: { opacity: 0, scale: prefersReducedMotion ? 1 : 0.92, transition: { duration: 0.15 } },
+};
+
 // --- Edit Modal ---
 function EditModal({
   collection,
@@ -70,11 +103,22 @@ function EditModal({
   const [description, setDescription] = useState(collection.description || '');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
-      <div
-        className="bg-white rounded-2xl border border-border p-6 w-full max-w-md mx-4 animate-scale-in"
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+      onClick={onClose}
+      variants={modalOverlayVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+    >
+      <motion.div
+        className="bg-white rounded-2xl border border-border p-6 w-full max-w-md mx-4"
         style={{ boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)' }}
         onClick={(e) => e.stopPropagation()}
+        variants={modalContentVariants}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
       >
         <h2 className="text-lg font-semibold text-foreground mb-4">Edit Collection</h2>
         <div className="space-y-4">
@@ -110,8 +154,8 @@ function EditModal({
           </button>
           <button onClick={onClose} className="btn-secondary rounded-full">Cancel</button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -128,11 +172,22 @@ function DeleteModal({
   isDeleting: boolean;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
-      <div
-        className="bg-white rounded-2xl border border-border p-6 w-full max-w-sm mx-4 animate-scale-in"
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+      onClick={onClose}
+      variants={modalOverlayVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+    >
+      <motion.div
+        className="bg-white rounded-2xl border border-border p-6 w-full max-w-sm mx-4"
         style={{ boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)' }}
         onClick={(e) => e.stopPropagation()}
+        variants={modalContentVariants}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
       >
         <h2 className="text-lg font-semibold text-foreground mb-2">Delete Collection</h2>
         <p className="text-sm text-muted mb-6">
@@ -148,8 +203,8 @@ function DeleteModal({
           </button>
           <button onClick={onClose} className="btn-secondary rounded-full">Cancel</button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -177,11 +232,22 @@ function PinActionModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
-      <div
-        className="bg-white rounded-2xl border border-border p-6 w-full max-w-sm mx-4 animate-scale-in"
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+      onClick={onClose}
+      variants={modalOverlayVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+    >
+      <motion.div
+        className="bg-white rounded-2xl border border-border p-6 w-full max-w-sm mx-4"
         style={{ boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)' }}
         onClick={(e) => e.stopPropagation()}
+        variants={modalContentVariants}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
       >
         <h2 className="text-lg font-semibold text-foreground mb-1">
           {action === 'move' ? 'Move' : 'Copy'} Pin
@@ -224,8 +290,8 @@ function PinActionModal({
           </button>
           <button onClick={onClose} className="btn-secondary rounded-full">Cancel</button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -622,201 +688,236 @@ export default function CollectionView({ collectionId }: CollectionViewProps) {
       </div>
 
       {/* Pin List Section */}
-      {showPinsList && (
-        <div className="w-full lg:w-[400px] overflow-hidden flex flex-col border-t lg:border-t-0 lg:border-l border-border animate-slide-in-right bg-white"
-             style={{ flexShrink: 0 }}>
-          {/* Header with close button */}
-          <div className="px-6 py-5 border-b border-border flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-foreground tracking-tight">All Pins</h2>
-            <button
-              onClick={() => setShowPinsList(false)}
-              className="w-9 h-9 text-muted hover:text-foreground rounded-full hover:bg-surface-hover flex items-center justify-center transition-all duration-200"
-              aria-label="Close pins list"
-              title="Close pins list"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+      <AnimatePresence>
+        {showPinsList && (
+          <motion.div
+            className="w-full lg:w-[400px] overflow-hidden flex flex-col border-t lg:border-t-0 lg:border-l border-border bg-white"
+            style={{ flexShrink: 0 }}
+            initial={prefersReducedMotion ? false : { x: 400, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={prefersReducedMotion ? { opacity: 0 } : { x: 400, opacity: 0 }}
+            transition={spring}
+          >
+            {/* Header with close button */}
+            <div className="px-6 py-5 border-b border-border flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-foreground tracking-tight">All Pins</h2>
+              <button
+                onClick={() => setShowPinsList(false)}
+                className="w-9 h-9 text-muted hover:text-foreground rounded-full hover:bg-surface-hover flex items-center justify-center transition-all duration-200"
+                aria-label="Close pins list"
+                title="Close pins list"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
 
-          <div className="flex-1 overflow-y-auto">
-            {collection.pins.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12">
-                <div className="w-16 h-16 bg-surface-hover rounded-full flex items-center justify-center mb-5">
-                  <svg className="w-8 h-8 text-muted-light" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round"
-                      d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round"
-                      d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-                  </svg>
+            <div className="flex-1 overflow-y-auto">
+              {collection.pins.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12">
+                  <div className="w-16 h-16 bg-surface-hover rounded-full flex items-center justify-center mb-5">
+                    <svg className="w-8 h-8 text-muted-light" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round"
+                        d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round"
+                        d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="font-medium text-foreground text-lg mb-1">No pins yet</h3>
+                  <p className="text-sm text-muted mb-5">Be the first to add a voice note!</p>
+                  <Link href="/?hint=add" className="btn-primary rounded-full">Add a pin</Link>
                 </div>
-                <h3 className="font-medium text-foreground text-lg mb-1">No pins yet</h3>
-                <p className="text-sm text-muted mb-5">Be the first to add a voice note!</p>
-                <Link href="/?hint=add" className="btn-primary rounded-full">Add a pin</Link>
-              </div>
-            ) : (
-              <ul className="divide-y divide-border">
-                {collection.pins.map((pin) => (
-                  <li key={pin.id} className="relative">
-                    <button
-                      onClick={() => handlePinClick(pin)}
-                      className="w-full px-6 py-4 text-left hover:bg-surface-hover transition-all duration-200 outline-none"
-                    >
-                      <div className="flex items-start gap-4">
-                        {/* Play button */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handlePlayAudio(pin.id);
-                          }}
-                          className="flex-shrink-0 w-10 h-10 bg-surface-hover hover:bg-border rounded-full
-                                   flex items-center justify-center transition-all duration-200"
-                          aria-label={playingPinId === pin.id ? 'Pause' : 'Play'}
-                        >
-                          {playingPinId === pin.id ? (
-                            <svg className="w-4 h-4 text-foreground" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-                            </svg>
-                          ) : (
-                            <svg className="w-4 h-4 text-foreground ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M8 5v14l11-7z" />
-                            </svg>
-                          )}
-                        </button>
+              ) : (
+                <motion.ul
+                  className="divide-y divide-border"
+                  variants={listContainer}
+                  initial="hidden"
+                  animate="show"
+                >
+                  {collection.pins.map((pin) => (
+                    <motion.li key={pin.id} className="relative" variants={listItem}>
+                      <button
+                        onClick={() => handlePinClick(pin)}
+                        className="w-full px-6 py-4 text-left hover:bg-surface-hover transition-all duration-200 outline-none"
+                      >
+                        <div className="flex items-start gap-4">
+                          {/* Play button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePlayAudio(pin.id);
+                            }}
+                            className="flex-shrink-0 w-10 h-10 bg-surface-hover hover:bg-border rounded-full
+                                     flex items-center justify-center transition-all duration-200"
+                            aria-label={playingPinId === pin.id ? 'Pause' : 'Play'}
+                          >
+                            {playingPinId === pin.id ? (
+                              <svg className="w-4 h-4 text-foreground" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                              </svg>
+                            ) : (
+                              <svg className="w-4 h-4 text-foreground ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z" />
+                              </svg>
+                            )}
+                          </button>
 
-                        <div className="flex-1 min-w-0">
-                          {(pin.thumbnailFile || pin.photoFile) && (
-                            <div className="relative w-full h-32 mb-2">
-                              <Image
-                                src={`/api/photos/${pin.thumbnailFile || pin.photoFile}`}
-                                alt={pin.title || 'Pin photo'}
-                                fill
-                                className="object-cover rounded-lg"
-                              />
+                          <div className="flex-1 min-w-0">
+                            {(pin.thumbnailFile || pin.photoFile) && (
+                              <div className="relative w-full h-32 mb-2">
+                                <Image
+                                  src={`/api/photos/${pin.thumbnailFile || pin.photoFile}`}
+                                  alt={pin.title || 'Pin photo'}
+                                  fill
+                                  className="object-cover rounded-lg"
+                                />
+                              </div>
+                            )}
+                            <h3 className="font-medium text-foreground text-base">
+                              <span className="flex items-center gap-2 min-w-0">
+                                <span className="truncate flex-1">{pin.title || 'Untitled Pin'}</span>
+                                {isRecentPin(pin.createdAt) && (
+                                  <motion.span
+                                    className="inline-flex items-center px-2 py-0.5 rounded-full border border-border bg-surface-hover text-[10px] font-medium text-foreground"
+                                    animate={prefersReducedMotion ? {} : {
+                                      boxShadow: [
+                                        '0 0 0 0 rgba(23, 23, 23, 0)',
+                                        '0 0 0 4px rgba(23, 23, 23, 0.08)',
+                                        '0 0 0 0 rgba(23, 23, 23, 0)',
+                                      ],
+                                    }}
+                                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                                  >
+                                    New
+                                  </motion.span>
+                                )}
+                              </span>
+                            </h3>
+                            {pin.description && (
+                              <p className="text-sm text-muted truncate mt-1">
+                                {pin.description}
+                              </p>
+                            )}
+                            <div className="flex items-center justify-between text-xs text-muted-light mt-1.5">
+                              <span>{formatRelativeTime(pin.createdAt)}</span>
+                              <span className="font-mono">{formatDuration(audioDurations[pin.id] ?? 0)}</span>
                             </div>
-                          )}
-                          <h3 className="font-medium text-foreground text-base">
-                            <span className="flex items-center gap-2 min-w-0">
-                              <span className="truncate flex-1">{pin.title || 'Untitled Pin'}</span>
-                              {isRecentPin(pin.createdAt) && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-border bg-surface-hover text-[10px] font-medium text-foreground">
-                                  New
-                                </span>
-                              )}
-                            </span>
-                          </h3>
-                          {pin.description && (
-                            <p className="text-sm text-muted truncate mt-1">
-                              {pin.description}
-                            </p>
-                          )}
-                          <div className="flex items-center justify-between text-xs text-muted-light mt-1.5">
-                            <span>{formatRelativeTime(pin.createdAt)}</span>
-                            <span className="font-mono">{formatDuration(audioDurations[pin.id] ?? 0)}</span>
                           </div>
-                        </div>
 
-                        {/* Pin context menu button */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPinMenuId(pinMenuId === pin.id ? null : pin.id);
-                          }}
-                          className="flex-shrink-0 w-7 h-7 rounded-full hover:bg-border flex items-center justify-center transition-colors mt-1"
-                          aria-label="Pin options"
-                        >
-                          <svg className="w-4 h-4 text-muted-light" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
-                          </svg>
-                        </button>
-                      </div>
-                    </button>
-
-                    {/* Pin context menu */}
-                    {pinMenuId === pin.id && (
-                      <>
-                        <div className="fixed inset-0 z-10" onClick={() => setPinMenuId(null)} />
-                        <div
-                          className="absolute right-6 top-12 z-20 bg-white rounded-xl border border-border overflow-hidden animate-scale-in"
-                          style={{ boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)', minWidth: 140 }}
-                        >
+                          {/* Pin context menu button */}
                           <button
-                            onClick={(e) => { e.stopPropagation(); openPinAction(pin, 'move'); }}
-                            className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-surface-hover transition-colors flex items-center gap-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPinMenuId(pinMenuId === pin.id ? null : pin.id);
+                            }}
+                            className="flex-shrink-0 w-7 h-7 rounded-full hover:bg-border flex items-center justify-center transition-colors mt-1"
+                            aria-label="Pin options"
                           >
-                            <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                            <svg className="w-4 h-4 text-muted-light" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
                             </svg>
-                            Move to...
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); openPinAction(pin, 'copy'); }}
-                            className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-surface-hover transition-colors flex items-center gap-2 border-t border-border"
-                          >
-                            <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
-                            </svg>
-                            Copy to...
                           </button>
                         </div>
-                      </>
-                    )}
+                      </button>
 
-                    <audio
-                      className="hidden"
-                      preload="metadata"
-                      src={`/api/audio/${pin.audioFile}`}
-                      onLoadedMetadata={(e) => handleAudioMetadata(pin.id, e.currentTarget.duration)}
-                    />
+                      {/* Pin context menu */}
+                      <AnimatePresence>
+                        {pinMenuId === pin.id && (
+                          <>
+                            <div className="fixed inset-0 z-10" onClick={() => setPinMenuId(null)} />
+                            <motion.div
+                              className="absolute right-6 top-12 z-20 bg-white rounded-xl border border-border overflow-hidden"
+                              style={{ boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)', minWidth: 140 }}
+                              initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.9 }}
+                              transition={{ duration: 0.15 }}
+                            >
+                              <button
+                                onClick={(e) => { e.stopPropagation(); openPinAction(pin, 'move'); }}
+                                className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-surface-hover transition-colors flex items-center gap-2"
+                              >
+                                <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                                </svg>
+                                Move to...
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); openPinAction(pin, 'copy'); }}
+                                className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-surface-hover transition-colors flex items-center gap-2 border-t border-border"
+                              >
+                                <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
+                                </svg>
+                                Copy to...
+                              </button>
+                            </motion.div>
+                          </>
+                        )}
+                      </AnimatePresence>
 
-                    {/* Audio element for playback */}
-                    {playingPinId === pin.id && (
-                      <div className="px-6 pb-4">
-                        <audio
-                          controls
-                          autoPlay
-                          src={`/api/audio/${pin.audioFile}`}
-                          className="w-full"
-                          onEnded={() => setPlayingPinId(null)}
-                        />
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-      )}
+                      <audio
+                        className="hidden"
+                        preload="metadata"
+                        src={`/api/audio/${pin.audioFile}`}
+                        onLoadedMetadata={(e) => handleAudioMetadata(pin.id, e.currentTarget.duration)}
+                      />
+
+                      {/* Audio element for playback */}
+                      {playingPinId === pin.id && (
+                        <div className="px-6 pb-4">
+                          <audio
+                            controls
+                            autoPlay
+                            src={`/api/audio/${pin.audioFile}`}
+                            className="w-full"
+                            onEnded={() => setPlayingPinId(null)}
+                          />
+                        </div>
+                      )}
+                    </motion.li>
+                  ))}
+                </motion.ul>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Modals */}
-      {showEditModal && (
-        <EditModal
-          collection={collection}
-          onClose={() => setShowEditModal(false)}
-          onSave={handleEditSave}
-        />
-      )}
+      <AnimatePresence>
+        {showEditModal && (
+          <EditModal
+            collection={collection}
+            onClose={() => setShowEditModal(false)}
+            onSave={handleEditSave}
+          />
+        )}
+      </AnimatePresence>
 
-      {showDeleteModal && (
-        <DeleteModal
-          collectionName={collection.name}
-          onClose={() => setShowDeleteModal(false)}
-          onConfirm={handleDelete}
-          isDeleting={isDeleting}
-        />
-      )}
+      <AnimatePresence>
+        {showDeleteModal && (
+          <DeleteModal
+            collectionName={collection.name}
+            onClose={() => setShowDeleteModal(false)}
+            onConfirm={handleDelete}
+            isDeleting={isDeleting}
+          />
+        )}
+      </AnimatePresence>
 
-      {pinActionModal && (
-        <PinActionModal
-          pin={pinActionModal.pin}
-          action={pinActionModal.action}
-          collections={otherCollections}
-          onClose={() => { setPinActionModal(null); setPinMenuId(null); }}
-          onConfirm={handlePinAction}
-        />
-      )}
+      <AnimatePresence>
+        {pinActionModal && (
+          <PinActionModal
+            pin={pinActionModal.pin}
+            action={pinActionModal.action}
+            collections={otherCollections}
+            onClose={() => { setPinActionModal(null); setPinMenuId(null); }}
+            onConfirm={handlePinAction}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

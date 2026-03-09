@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import {
@@ -11,6 +12,25 @@ import {
   LOCATED_ZOOM,
   DEFAULT_ZOOM,
 } from '../../utils/geolocation';
+
+const prefersReducedMotion =
+  typeof window !== 'undefined' &&
+  window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+const spring = { type: 'spring' as const, stiffness: 350, damping: 25 };
+
+const staggerContainer = {
+  hidden: { opacity: prefersReducedMotion ? 1 : 0 },
+  show: {
+    opacity: 1,
+    transition: prefersReducedMotion ? {} : { staggerChildren: 0.08 },
+  },
+};
+
+const staggerItem = {
+  hidden: { opacity: prefersReducedMotion ? 1 : 0, y: prefersReducedMotion ? 0 : 20 },
+  show: { opacity: 1, y: 0, transition: spring },
+};
 
 export default function NewCollectionPage() {
   const router = useRouter();
@@ -95,18 +115,29 @@ export default function NewCollectionPage() {
     <div className="min-h-screen bg-background">
       <div className="max-w-2xl mx-auto px-6 py-8">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-8">
+        <motion.div
+          className="flex items-center gap-3 mb-8"
+          initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={spring}
+        >
           <Link href="/collections" className="text-muted hover:text-foreground transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
             </svg>
           </Link>
           <h1 className="text-2xl font-semibold text-foreground">New Collection</h1>
-        </div>
+        </motion.div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <motion.form
+          onSubmit={handleSubmit}
+          className="space-y-6"
+          variants={staggerContainer}
+          initial="hidden"
+          animate="show"
+        >
           {/* Name */}
-          <div>
+          <motion.div variants={staggerItem}>
             <label htmlFor="name" className="block text-sm font-medium text-foreground mb-1.5">
               Name
             </label>
@@ -119,10 +150,10 @@ export default function NewCollectionPage() {
               className="input"
               autoFocus
             />
-          </div>
+          </motion.div>
 
           {/* Description */}
-          <div>
+          <motion.div variants={staggerItem}>
             <label htmlFor="description" className="block text-sm font-medium text-foreground mb-1.5">
               Description <span className="text-muted-light font-normal">(optional)</span>
             </label>
@@ -134,10 +165,10 @@ export default function NewCollectionPage() {
               rows={3}
               className="textarea"
             />
-          </div>
+          </motion.div>
 
           {/* Center location map */}
-          <div>
+          <motion.div variants={staggerItem}>
             <label className="block text-sm font-medium text-foreground mb-1.5">
               Center location
             </label>
@@ -154,18 +185,20 @@ export default function NewCollectionPage() {
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {error && (
             <p className="text-sm text-red-600">{error}</p>
           )}
 
           {/* Actions */}
-          <div className="flex items-center gap-3 pt-2">
-            <button
+          <motion.div className="flex items-center gap-3 pt-2" variants={staggerItem}>
+            <motion.button
               type="submit"
               disabled={submitting}
               className="btn-primary rounded-full flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              whileTap={prefersReducedMotion ? {} : { scale: 0.96 }}
+              transition={spring}
             >
               {submitting ? (
                 <>
@@ -178,12 +211,12 @@ export default function NewCollectionPage() {
               ) : (
                 'Create Collection'
               )}
-            </button>
+            </motion.button>
             <Link href="/collections" className="btn-secondary rounded-full">
               Cancel
             </Link>
-          </div>
-        </form>
+          </motion.div>
+        </motion.form>
       </div>
     </div>
   );
