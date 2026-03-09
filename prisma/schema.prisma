@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── NextAuth Models ────────────────────────────────────────────────────────
+
+model User {
+  id             String    @id @default(cuid())
+  name           String?
+  email          String?   @unique
+  emailVerified  DateTime?
+  image          String?
+  hashedPassword String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  accounts    Account[]
+  sessions    Session[]
+  collections Collection[]
+  pins        Pin[]
+  tours       Tour[]
+  favorites   Favorite[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── App Models ─────────────────────────────────────────────────────────────
+
+model Collection {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  userId      String
+  isPublic    Boolean  @default(false)
+  centerLat   Float
+  centerLng   Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pins  Pin[]
+  tours Tour[]
+
+  @@index([userId])
+  @@index([centerLat, centerLng])
+}
+
+enum PinCategory {
+  GENERAL
+  FOOD
+  HISTORY
+  NATURE
+  CULTURE
+  ARCHITECTURE
+}
+
+model Pin {
+  id             String       @id @default(cuid())
+  title          String
+  description    String?
+  transcript     String?      @db.Text
+  lat            Float
+  lng            Float
+  audioUrl       String?
+  photoUrl       String?
+  thumbnailUrl   String?
+  category       PinCategory  @default(GENERAL)
+  duration       Float?
+  collectionId   String
+  userId         String
+  isAiGenerated  Boolean      @default(false)
+  aiGenerationId String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  collection Collection  @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  favorites  Favorite[]
+  tourStops  TourStop[]
+
+  @@index([collectionId])
+  @@index([userId])
+  @@index([lat, lng])
+}
+
+model Tour {
+  id                String   @id @default(cuid())
+  name              String
+  userId            String
+  collectionId      String
+  totalDistance      Float?
+  estimatedDuration Float?
+  createdAt         DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  stops      TourStop[]
+
+  @@index([userId])
+  @@index([collectionId])
+}
+
+model TourStop {
+  id                   String @id @default(cuid())
+  tourId               String
+  pinId                String
+  stopOrder            Int
+  distanceFromPrevious Float?
+
+  tour Tour @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  pin  Pin  @relation(fields: [pinId], references: [id], onDelete: Cascade)
+
+  @@unique([tourId, stopOrder])
+  @@index([tourId])
+  @@index([pinId])
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  pinId     String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pin  Pin  @relation(fields: [pinId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, pinId])
+  @@index([userId])
+  @@index([pinId])
+}

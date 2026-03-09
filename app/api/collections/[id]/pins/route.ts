@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import path from 'path';
 import { processImage } from '../../../../lib/services/imageProcessor';
+import { prisma } from '@/app/lib/db';
+import { getCurrentUser } from '@/app/lib/session';
+import { PinCategory } from '@/app/generated/prisma/client';
 
 const DATA_PATH = path.join(process.cwd(), 'data', 'collections.json');
 const AUDIO_PATH = path.join(process.cwd(), 'data', 'audio');
@@ -41,12 +44,62 @@ function generateId(): string {
   return result;
 }
 
+const CATEGORY_MAP: Record<string, PinCategory> = {
+  general: 'GENERAL',
+  food: 'FOOD',
+  history: 'HISTORY',
+  nature: 'NATURE',
+  culture: 'CULTURE',
+  architecture: 'ARCHITECTURE',
+};
+
+function toPrismaCategory(category?: string | null): PinCategory {
+  if (!category) return 'GENERAL';
+  return CATEGORY_MAP[category.toLowerCase()] || 'GENERAL';
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
+    const user = await getCurrentUser();
+
+    // Try database first if user is authenticated
+    if (user) {
+      const collection = await prisma.collection.findFirst({
+        where: {
+          id,
+          OR: [{ userId: user.id }, { isPublic: true }],
+        },
+        include: {
+          pins: { orderBy: { createdAt: 'asc' } },
+        },
+      });
+
+      if (collection) {
+        return NextResponse.json(
+          collection.pins.map((p) => ({
+            id: p.id,
+            lat: p.lat,
+            lng: p.lng,
+            title: p.title,
+            description: p.description || '',
+            transcript: p.transcript || '',
+            audioFile: p.audioUrl || '',
+            photoFile: p.photoUrl || undefined,
+            thumbnailFile: p.thumbnailUrl || undefined,
+            category: p.category,
+            createdAt: p.createdAt.toISOString(),
+            isAiGenerated: p.isAiGenerated,
+            aiGenerationId: p.aiGenerationId || undefined,
+          }))
+        );
+      }
+    }
+
+    // Fallback to file-based storage
     const data: CollectionsData = JSON.parse(readFileSync(DATA_PATH, 'utf-8'));
     const collection = data.collections.find((c) => c.id === id);
 
@@ -92,14 +145,6 @@ export async function POST(
       }
     }
 
-    // Read current data
-    const data: CollectionsData = JSON.parse(readFileSync(DATA_PATH, 'utf-8'));
-    const collectionIndex = data.collections.findIndex((c) => c.id === id);
-
-    if (collectionIndex === -1) {
-      return NextResponse.json({ error: 'Collection not found' }, { status: 404 });
-    }
-
     // Ensure directories exist
     if (!existsSync(AUDIO_PATH)) {
       mkdirSync(AUDIO_PATH, { recursive: true });
@@ -130,6 +175,57 @@ export async function POST(
 
       writeFileSync(path.join(PHOTOS_PATH, photoFileName), processed.fullBuffer);
       writeFileSync(path.join(PHOTOS_PATH, thumbnailFileName), processed.thumbnailBuffer);
+    }
+
+    // Try database first if user is authenticated
+    const user = await getCurrentUser();
+    if (user) {
+      const collection = await prisma.collection.findFirst({
+        where: { id, userId: user.id },
+      });
+
+      if (collection) {
+        const dbPin = await prisma.pin.create({
+          data: {
+            title: title || '',
+            description: description || '',
+            transcript: transcript || '',
+            lat,
+            lng,
+            audioUrl: audioFileName,
+            photoUrl: photoFileName || null,
+            thumbnailUrl: thumbnailFileName || null,
+            category: toPrismaCategory(category),
+            collectionId: collection.id,
+            userId: user.id,
+          },
+        });
+
+        return NextResponse.json(
+          {
+            id: dbPin.id,
+            lat: dbPin.lat,
+            lng: dbPin.lng,
+            title: dbPin.title,
+            description: dbPin.description || '',
+            transcript: dbPin.transcript || '',
+            audioFile: dbPin.audioUrl || '',
+            photoFile: dbPin.photoUrl || undefined,
+            thumbnailFile: dbPin.thumbnailUrl || undefined,
+            category: dbPin.category,
+            createdAt: dbPin.createdAt.toISOString(),
+          },
+          { status: 201 }
+        );
+      }
+    }
+
+    // Fallback to file-based storage
+    const data: CollectionsData = JSON.parse(readFileSync(DATA_PATH, 'utf-8'));
+    const collectionIndex = data.collections.findIndex((c) => c.id === id);
+
+    if (collectionIndex === -1) {
+      return NextResponse.json({ error: 'Collection not found' }, { status: 404 });
     }
 
     // Create pin object
